@@ -22,14 +22,23 @@ class AuthGatePage extends ConsumerWidget {
 
     final state = ref.watch(authControllerProvider);
     final isLoading = state.isLoading;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
 
     return Scaffold(
       body: Container(
-        decoration: const BoxDecoration(
+        decoration: BoxDecoration(
           gradient: LinearGradient(
             begin: Alignment.topCenter,
             end: Alignment.bottomCenter,
-            colors: <Color>[TawakkalColors.cream, Color(0xFFE8F1E6)],
+            colors: isDark
+                ? const <Color>[
+                    TawakkalColors.backgroundDark,
+                    Color(0xFF151E1C),
+                  ]
+                : const <Color>[
+                    TawakkalColors.backgroundLight,
+                    Color(0xFFE8F1E6),
+                  ],
           ),
         ),
         child: SafeArea(
@@ -42,7 +51,7 @@ class AuthGatePage extends ConsumerWidget {
                 Text(
                   AppConfig.appName,
                   style: Theme.of(context).textTheme.displayMedium?.copyWith(
-                    color: TawakkalColors.emerald,
+                    color: TawakkalColors.primaryDark,
                   ),
                   textAlign: TextAlign.center,
                 ),
@@ -58,7 +67,7 @@ class AuthGatePage extends ConsumerWidget {
                 Text(
                   'Belajar Al-Quran dengan tenang, bertahap, dan bermakna.',
                   style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                    color: TawakkalColors.mutedInk,
+                    color: TawakkalColors.textSecondary,
                   ),
                   textAlign: TextAlign.center,
                 ),

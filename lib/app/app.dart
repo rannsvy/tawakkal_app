@@ -16,6 +16,8 @@ class TawakkalApp extends ConsumerWidget {
       debugShowCheckedModeBanner: false,
       title: AppConfig.appName,
       theme: TawakkalTheme.light(),
+      darkTheme: TawakkalTheme.dark(),
+      themeMode: ThemeMode.system,
       routerConfig: router,
     );
   }

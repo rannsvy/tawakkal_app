@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../../app/theme/colors.dart';
 import '../../../../app/theme/typography.dart';
+import '../../../../shared/widgets/rich_info_card.dart';
 import '../../domain/entities/ayah.dart';
 import '../providers/quran_providers.dart';
 
@@ -17,77 +19,124 @@ class AyahCard extends ConsumerWidget {
     final bookmarkState = ref.watch(ayahBookmarkProvider(locator));
     final noteState = ref.watch(ayahNoteProvider(locator));
     final note = noteState.value;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final titleColor = isDark
+        ? TawakkalColors.textPrimaryDark
+        : TawakkalColors.textPrimaryLight;
+    final subtitleColor = isDark
+        ? TawakkalColors.textSecondary
+        : TawakkalColors.textPrimaryLight.withValues(alpha: 0.7);
 
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            Row(
-              children: [
-                CircleAvatar(radius: 14, child: Text('${ayah.ayahNumber}')),
-                const Spacer(),
-                IconButton(
-                  tooltip: 'Putar audio ayat',
-                  onPressed: onPlayPressed,
-                  icon: const Icon(Icons.play_circle_outline),
-                ),
-                IconButton(
-                  tooltip: 'Simpan bookmark ayat',
-                  onPressed: bookmarkState.value == null
-                      ? null
-                      : () {
-                          ref
-                              .read(quranActionsProvider)
-                              .toggleBookmark(
-                                surahId: ayah.surahId,
-                                ayahNumber: ayah.ayahNumber,
-                                bookmarked: !(bookmarkState.value ?? false),
-                              );
-                        },
-                  icon: Icon(
-                    (bookmarkState.value ?? false)
-                        ? Icons.bookmark
-                        : Icons.bookmark_outline,
+    return RichInfoCard(
+      borderRadius: 18,
+      padding: const EdgeInsets.all(16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Row(
+            children: [
+              Container(
+                width: 30,
+                height: 30,
+                alignment: Alignment.center,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: TawakkalColors.primary.withValues(alpha: 0.2),
+                  border: Border.all(
+                    color: TawakkalColors.primary.withValues(alpha: 0.4),
                   ),
                 ),
-                IconButton(
-                  tooltip: 'Tambahkan catatan',
-                  onPressed: () =>
-                      _showNoteEditor(context, ref, noteState.value),
-                  icon: const Icon(Icons.note_alt_outlined),
+                child: Text(
+                  '${ayah.ayahNumber}',
+                  style: Theme.of(context).textTheme.labelMedium?.copyWith(
+                    color: TawakkalColors.primary,
+                    fontWeight: FontWeight.w800,
+                  ),
                 ),
-              ],
-            ),
-            const SizedBox(height: 10),
-            Text(
-              ayah.textArabic,
-              textAlign: TextAlign.right,
-              style: TawakkalTypography.arabicStyle(
-                color: Theme.of(context).colorScheme.onSurface,
               ),
-            ),
-            const SizedBox(height: 12),
-            Text(ayah.textLatin, style: Theme.of(context).textTheme.bodyMedium),
-            const SizedBox(height: 8),
-            Text(
-              ayah.textIndonesian,
-              style: Theme.of(context).textTheme.bodyLarge,
-            ),
-            if (note != null && note.isNotEmpty) ...[
-              const SizedBox(height: 10),
-              Container(
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  color: Theme.of(context).colorScheme.surfaceContainerLowest,
-                  borderRadius: BorderRadius.circular(12),
+              const Spacer(),
+              IconButton(
+                tooltip: 'Putar audio ayat',
+                onPressed: onPlayPressed,
+                icon: const Icon(Icons.play_circle_outline),
+                color: TawakkalColors.primary,
+              ),
+              IconButton(
+                tooltip: 'Simpan bookmark ayat',
+                onPressed: bookmarkState.value == null
+                    ? null
+                    : () {
+                        ref
+                            .read(quranActionsProvider)
+                            .toggleBookmark(
+                              surahId: ayah.surahId,
+                              ayahNumber: ayah.ayahNumber,
+                              bookmarked: !(bookmarkState.value ?? false),
+                            );
+                      },
+                icon: Icon(
+                  (bookmarkState.value ?? false)
+                      ? Icons.bookmark
+                      : Icons.bookmark_outline,
                 ),
-                child: Text(note, style: Theme.of(context).textTheme.bodySmall),
+                color: (bookmarkState.value ?? false)
+                    ? TawakkalColors.accentGold
+                    : subtitleColor,
+              ),
+              IconButton(
+                tooltip: 'Tambahkan catatan',
+                onPressed: () => _showNoteEditor(context, ref, noteState.value),
+                icon: const Icon(Icons.note_alt_outlined),
+                color: subtitleColor,
               ),
             ],
+          ),
+          const SizedBox(height: 10),
+          Text(
+            ayah.textArabic,
+            textAlign: TextAlign.right,
+            style: TawakkalTypography.arabicStyle(
+              color: isDark ? Colors.white : TawakkalColors.textPrimaryLight,
+            ),
+          ),
+          const SizedBox(height: 12),
+          Text(
+            ayah.textLatin,
+            style: Theme.of(
+              context,
+            ).textTheme.bodyMedium?.copyWith(color: subtitleColor),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            ayah.textIndonesian,
+            style: Theme.of(
+              context,
+            ).textTheme.bodyLarge?.copyWith(color: titleColor),
+          ),
+          if (note != null && note.isNotEmpty) ...[
+            const SizedBox(height: 10),
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: isDark
+                    ? const Color(0x1AFFFFFF)
+                    : const Color(0x0F000000),
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(
+                  color: isDark
+                      ? const Color(0x1EFFFFFF)
+                      : const Color(0x10000000),
+                ),
+              ),
+              child: Text(
+                note,
+                style: Theme.of(
+                  context,
+                ).textTheme.bodySmall?.copyWith(color: subtitleColor),
+              ),
+            ),
           ],
-        ),
+        ],
       ),
     );
   }

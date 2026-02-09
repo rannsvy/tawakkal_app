@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import '../../../../app/theme/colors.dart';
+
 class AudioDownloadButton extends StatelessWidget {
   const AudioDownloadButton({
     super.key,
@@ -20,6 +22,8 @@ class AudioDownloadButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
     if (isRemoving) {
       return const SizedBox(
         width: 44,
@@ -43,10 +47,21 @@ class AudioDownloadButton extends StatelessWidget {
             height: 44,
             decoration: BoxDecoration(
               shape: BoxShape.circle,
-              color: const Color(0x132E7D6D),
-              border: Border.all(color: const Color(0x332E7D6D)),
+              color: TawakkalColors.primary.withValues(
+                alpha: isDark ? 0.2 : 0.12,
+              ),
+              border: Border.all(
+                color: TawakkalColors.primary.withValues(
+                  alpha: isDark ? 0.38 : 0.28,
+                ),
+              ),
             ),
-            child: const Icon(Icons.check_rounded, color: Color(0xFF2E7D6D)),
+            child: Icon(
+              Icons.check_rounded,
+              color: isDark
+                  ? TawakkalColors.primary
+                  : TawakkalColors.primaryDark,
+            ),
           ),
         ),
       );
@@ -66,7 +81,9 @@ class AudioDownloadButton extends StatelessWidget {
               child: CircularProgressIndicator(
                 value: safeProgress,
                 strokeWidth: 2.6,
-                backgroundColor: const Color(0x22000000),
+                backgroundColor: isDark
+                    ? const Color(0x22FFFFFF)
+                    : const Color(0x22000000),
                 valueColor: AlwaysStoppedAnimation<Color>(
                   Theme.of(context).colorScheme.primary,
                 ),
@@ -84,10 +101,24 @@ class AudioDownloadButton extends StatelessWidget {
       );
     }
 
-    return IconButton(
-      tooltip: 'Unduh offline',
-      onPressed: onPressed,
-      icon: const Icon(Icons.download_for_offline_outlined),
+    return Tooltip(
+      message: 'Unduh offline',
+      child: InkWell(
+        borderRadius: BorderRadius.circular(22),
+        onTap: onPressed,
+        child: Container(
+          width: 44,
+          height: 44,
+          decoration: BoxDecoration(
+            shape: BoxShape.circle,
+            color: isDark ? const Color(0x14FFFFFF) : const Color(0x0F000000),
+            border: Border.all(
+              color: isDark ? const Color(0x24FFFFFF) : const Color(0x12000000),
+            ),
+          ),
+          child: const Icon(Icons.download_for_offline_outlined),
+        ),
+      ),
     );
   }
 }

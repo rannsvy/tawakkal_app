@@ -3,15 +3,22 @@ import 'package:google_fonts/google_fonts.dart';
 
 class TawakkalTypography {
   static TextTheme textTheme(Color color) {
-    final base = GoogleFonts.nunitoTextTheme();
+    final base = GoogleFonts.interTextTheme();
     return base.copyWith(
+      displayLarge: base.displayLarge?.copyWith(
+        color: color,
+        fontWeight: FontWeight.w800,
+        letterSpacing: -0.6,
+      ),
       displayMedium: base.displayMedium?.copyWith(
         color: color,
-        fontWeight: FontWeight.w700,
+        fontWeight: FontWeight.w800,
+        letterSpacing: -0.4,
       ),
       headlineMedium: base.headlineMedium?.copyWith(
         color: color,
         fontWeight: FontWeight.w700,
+        letterSpacing: -0.2,
       ),
       titleLarge: base.titleLarge?.copyWith(
         color: color,
@@ -32,7 +39,7 @@ class TawakkalTypography {
   }
 
   static TextStyle arabicStyle({required Color color, double size = 30}) {
-    return GoogleFonts.notoNaskhArabic(
+    return GoogleFonts.notoSansArabic(
       color: color,
       fontSize: size,
       fontWeight: FontWeight.w600,

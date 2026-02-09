@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:just_audio/just_audio.dart';
 
+import '../../../../app/theme/colors.dart';
 import '../providers/audio_providers.dart';
 
 class PersistentMiniPlayer extends ConsumerWidget {
@@ -15,6 +16,9 @@ class PersistentMiniPlayer extends ConsumerWidget {
     if (track == null) {
       return const SizedBox.shrink();
     }
+
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
 
     final playerState = ref.watch(audioPlayerStateProvider).asData?.value;
     final isPlaying = playerState?.playing ?? false;
@@ -34,6 +38,16 @@ class PersistentMiniPlayer extends ConsumerWidget {
               .clamp(0, 1)
               .toDouble();
 
+    final backgroundGradient = isDark
+        ? const [Color(0xFF15221F), Color(0xFF1C2F29)]
+        : const [Color(0xFFEEF5F2), Color(0xFFE4F0EC)];
+    final foreground = isDark
+        ? TawakkalColors.textPrimaryDark
+        : TawakkalColors.textPrimaryLight;
+    final subtleForeground = isDark
+        ? TawakkalColors.textSecondary
+        : TawakkalColors.textPrimaryLight.withValues(alpha: 0.62);
+
     return Padding(
       padding: const EdgeInsets.fromLTRB(12, 6, 12, 6),
       child: Material(
@@ -44,16 +58,21 @@ class PersistentMiniPlayer extends ConsumerWidget {
           child: Ink(
             decoration: BoxDecoration(
               borderRadius: BorderRadius.circular(16),
-              gradient: const LinearGradient(
+              gradient: LinearGradient(
                 begin: Alignment.topLeft,
                 end: Alignment.bottomRight,
-                colors: [Color(0xFF0D1F1A), Color(0xFF173229)],
+                colors: backgroundGradient,
               ),
-              boxShadow: const [
+              border: Border.all(
+                color: isDark
+                    ? const Color(0x18FFFFFF)
+                    : const Color(0x14000000),
+              ),
+              boxShadow: [
                 BoxShadow(
-                  color: Color(0x20000000),
+                  color: Colors.black.withValues(alpha: isDark ? 0.2 : 0.07),
                   blurRadius: 10,
-                  offset: Offset(0, 3),
+                  offset: const Offset(0, 3),
                 ),
               ],
             ),
@@ -68,11 +87,15 @@ class PersistentMiniPlayer extends ConsumerWidget {
                         height: 36,
                         decoration: BoxDecoration(
                           borderRadius: BorderRadius.circular(10),
-                          color: const Color(0x44FFFFFF),
+                          color: isDark
+                              ? const Color(0x22FFFFFF)
+                              : TawakkalColors.primary.withValues(alpha: 0.14),
                         ),
-                        child: const Icon(
+                        child: Icon(
                           Icons.graphic_eq_rounded,
-                          color: Colors.white,
+                          color: isDark
+                              ? TawakkalColors.textPrimaryDark
+                              : TawakkalColors.primaryDark,
                           size: 20,
                         ),
                       ),
@@ -85,18 +108,18 @@ class PersistentMiniPlayer extends ConsumerWidget {
                               track.title,
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
-                              style: Theme.of(context).textTheme.titleSmall
-                                  ?.copyWith(
-                                    color: Colors.white,
-                                    fontWeight: FontWeight.w700,
-                                  ),
+                              style: theme.textTheme.titleSmall?.copyWith(
+                                color: foreground,
+                                fontWeight: FontWeight.w700,
+                              ),
                             ),
                             Text(
                               track.artist ?? 'Murottal',
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
-                              style: Theme.of(context).textTheme.bodySmall
-                                  ?.copyWith(color: const Color(0xCCFFFFFF)),
+                              style: theme.textTheme.bodySmall?.copyWith(
+                                color: subtleForeground,
+                              ),
                             ),
                           ],
                         ),
@@ -108,7 +131,7 @@ class PersistentMiniPlayer extends ConsumerWidget {
                               }
                             : null,
                         icon: const Icon(Icons.skip_previous_rounded),
-                        color: Colors.white,
+                        color: foreground,
                         iconSize: 24,
                       ),
                       IconButton(
@@ -120,7 +143,7 @@ class PersistentMiniPlayer extends ConsumerWidget {
                               ? Icons.pause_circle_filled_rounded
                               : Icons.play_circle_fill_rounded,
                         ),
-                        color: Colors.white,
+                        color: TawakkalColors.primary,
                         iconSize: 32,
                       ),
                       IconButton(
@@ -130,7 +153,7 @@ class PersistentMiniPlayer extends ConsumerWidget {
                               }
                             : null,
                         icon: const Icon(Icons.skip_next_rounded),
-                        color: Colors.white,
+                        color: foreground,
                         iconSize: 24,
                       ),
                       IconButton(
@@ -142,8 +165,8 @@ class PersistentMiniPlayer extends ConsumerWidget {
                         icon: Icon(
                           Icons.repeat_one_rounded,
                           color: loopMode == LoopMode.one
-                              ? Colors.white
-                              : const Color(0x88FFFFFF),
+                              ? TawakkalColors.primary
+                              : subtleForeground,
                         ),
                         iconSize: 22,
                       ),
@@ -158,9 +181,11 @@ class PersistentMiniPlayer extends ConsumerWidget {
                   child: LinearProgressIndicator(
                     minHeight: 3,
                     value: progress,
-                    backgroundColor: const Color(0x1FFFFFFF),
+                    backgroundColor: isDark
+                        ? const Color(0x1FFFFFFF)
+                        : const Color(0x16000000),
                     valueColor: const AlwaysStoppedAnimation<Color>(
-                      Colors.white,
+                      TawakkalColors.primary,
                     ),
                   ),
                 ),
