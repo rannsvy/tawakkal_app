@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../../app/theme/colors.dart';
+import '../../../../app/theme/typography.dart';
 import '../../../../core/constants/reciters.dart';
 import '../../../audio/presentation/providers/audio_providers.dart';
 import '../../../auth/presentation/providers/auth_providers.dart';
@@ -29,14 +30,20 @@ class DashboardPage extends ConsumerWidget {
         : 'Sahabat';
     final streak = progress?.currentStreak ?? 0;
     final xpTotal = progress?.xpTotal ?? 0;
-    final todayMinutes = math.min(20, (xpTotal % 200) ~/ 10);
-    final goalRatio = todayMinutes / 20;
+    const goalTargetMinutes = 20;
+    final todayMinutes = math
+        .min(goalTargetMinutes, ((xpTotal % 260) ~/ 12) + math.min(streak, 4))
+        .toInt();
+    final goalRatio = (todayMinutes / goalTargetMinutes).clamp(0.0, 1.0);
     final continueSurah = _pickContinueSurah(surahs);
-    final continueCompletion = math.min(0.97, 0.22 + (xpTotal % 70) / 100);
+    final continueCompletion = math.min(0.96, 0.24 + (xpTotal % 72) / 100);
+    final continueAyah = continueSurah == null
+        ? 1
+        : math.max(1, (continueSurah.ayahCount * continueCompletion).round());
 
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
-    return Container(
+    return DecoratedBox(
       decoration: BoxDecoration(
         gradient: LinearGradient(
           begin: Alignment.topCenter,
@@ -52,118 +59,133 @@ class DashboardPage extends ConsumerWidget {
         ),
         child: SafeArea(
           bottom: false,
-          child: RefreshIndicator(
-            onRefresh: () async {
-              ref.invalidate(surahListProvider);
-              ref.invalidate(progressSnapshotProvider);
-              await Future.wait([
-                ref.read(surahListProvider.future),
-                ref.read(progressSnapshotProvider.future),
-              ]);
-            },
-            child: ListView(
-              padding: const EdgeInsets.fromLTRB(20, 8, 20, 24),
-              children: [
-                _DashboardHeader(
+          child: Column(
+            children: [
+              Padding(
+                padding: const EdgeInsets.fromLTRB(20, 8, 20, 4),
+                child: _DashboardHeader(
                   streak: streak,
-                  onNotificationsTap: () {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(
-                        content: Text('Notifikasi akan hadir segera.'),
-                      ),
-                    );
-                  },
+                  onNotificationsTap: () =>
+                      _showComingSoon(context, featureLabel: 'Notifikasi'),
                 ),
-                const SizedBox(height: 14),
-                Text(
-                  'Ramadan Mubarak',
-                  style: Theme.of(context).textTheme.labelMedium?.copyWith(
-                    color: TawakkalColors.textSecondary,
-                    letterSpacing: 1.0,
-                    fontWeight: FontWeight.w700,
+              ),
+              Expanded(
+                child: ListView(
+                  physics: const BouncingScrollPhysics(
+                    parent: AlwaysScrollableScrollPhysics(),
                   ),
-                ),
-                const SizedBox(height: 4),
-                RichText(
-                  text: TextSpan(
-                    style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                      fontWeight: FontWeight.w800,
+                  padding: const EdgeInsets.fromLTRB(20, 10, 20, 140),
+                  children: [
+                    Text(
+                      'Ramadan Mubarak',
+                      style: Theme.of(context).textTheme.labelMedium?.copyWith(
+                        color: TawakkalColors.textSecondary,
+                        letterSpacing: 1.0,
+                        fontWeight: FontWeight.w700,
+                      ),
                     ),
-                    children: [
-                      const TextSpan(text: 'Assalamu Alaikum,\n'),
-                      TextSpan(
-                        text: greetingName,
-                        style: const TextStyle(color: TawakkalColors.primary),
+                    const SizedBox(height: 4),
+                    RichText(
+                      text: TextSpan(
+                        style: Theme.of(context).textTheme.headlineMedium
+                            ?.copyWith(
+                              fontWeight: FontWeight.w800,
+                              height: 1.12,
+                            ),
+                        children: [
+                          const TextSpan(text: 'Assalamu Alaikum,\n'),
+                          TextSpan(
+                            text: greetingName,
+                            style: const TextStyle(
+                              color: TawakkalColors.primary,
+                            ),
+                          ),
+                        ],
                       ),
-                    ],
-                  ),
-                ),
-                const SizedBox(height: 20),
-                _TodayGoalCard(
-                  currentMinutes: todayMinutes,
-                  targetMinutes: 20,
-                  ratio: goalRatio,
-                ),
-                const SizedBox(height: 20),
-                const _SectionTitle(
-                  title: 'Continue Learning',
-                  actionLabel: 'View All',
-                ),
-                const SizedBox(height: 12),
-                _ContinueLearningCard(
-                  surah: continueSurah,
-                  completion: continueCompletion,
-                  onResumeTap: continueSurah == null
-                      ? null
-                      : () {
-                          onSelectTab(2);
-                          context.push(
-                            '/quiz?surahId=${continueSurah.surahId}&difficulty=easy',
-                          );
-                        },
-                ),
-                const SizedBox(height: 22),
-                const _SectionTitle(title: 'Quick Actions'),
-                const SizedBox(height: 12),
-                SizedBox(
-                  height: 112,
-                  child: ListView(
-                    scrollDirection: Axis.horizontal,
-                    children: [
-                      _QuickActionTile(
-                        icon: Icons.menu_book_rounded,
-                        title: 'Daily Verse',
-                        accent: const Color(0xFF7FB3FF),
-                        onTap: () => onSelectTab(1),
+                    ),
+                    const SizedBox(height: 20),
+                    _TodayGoalCard(
+                      currentMinutes: todayMinutes,
+                      targetMinutes: goalTargetMinutes,
+                      ratio: goalRatio,
+                    ),
+                    const SizedBox(height: 20),
+                    _SectionTitle(
+                      title: 'Continue Learning',
+                      actionLabel: 'View All',
+                      onActionTap: () => onSelectTab(2),
+                    ),
+                    const SizedBox(height: 12),
+                    _ContinueLearningCard(
+                      surah: continueSurah,
+                      completion: continueCompletion,
+                      currentAyah: continueAyah,
+                      onResumeTap: continueSurah == null
+                          ? null
+                          : () {
+                              onSelectTab(2);
+                              context.push(
+                                '/quiz?surahId=${continueSurah.surahId}&difficulty=easy',
+                              );
+                            },
+                    ),
+                    const SizedBox(height: 22),
+                    const _SectionTitle(title: 'Quick Actions'),
+                    const SizedBox(height: 12),
+                    SizedBox(
+                      height: 116,
+                      child: ListView(
+                        physics: const BouncingScrollPhysics(),
+                        scrollDirection: Axis.horizontal,
+                        children: [
+                          _QuickActionTile(
+                            icon: Icons.menu_book_rounded,
+                            title: 'Daily Verse',
+                            accent: const Color(0xFF7FB3FF),
+                            onTap: () => onSelectTab(1),
+                          ),
+                          _QuickActionTile(
+                            icon: Icons.explore_rounded,
+                            title: 'Qibla Finder',
+                            accent: TawakkalColors.primary,
+                            onTap: () => _showComingSoon(
+                              context,
+                              featureLabel: 'Qibla Finder',
+                            ),
+                          ),
+                          _QuickActionTile(
+                            icon: Icons.mosque_rounded,
+                            title: 'Prayer Times',
+                            accent: const Color(0xFFB79CFF),
+                            onTap: () => _showComingSoon(
+                              context,
+                              featureLabel: 'Prayer Times',
+                            ),
+                          ),
+                          _QuickActionTile(
+                            icon: Icons.volunteer_activism_rounded,
+                            title: 'Tasbih',
+                            accent: const Color(0xFFFFB175),
+                            onTap: () => _showComingSoon(
+                              context,
+                              featureLabel: 'Tasbih',
+                            ),
+                          ),
+                        ],
                       ),
-                      _QuickActionTile(
-                        icon: Icons.explore_rounded,
-                        title: 'Qibla Finder',
-                        accent: TawakkalColors.primary,
-                        onTap: () => _showComingSoon(context),
-                      ),
-                      _QuickActionTile(
-                        icon: Icons.mosque_rounded,
-                        title: 'Prayer Times',
-                        accent: const Color(0xFFB79CFF),
-                        onTap: () => _showComingSoon(context),
-                      ),
-                      _QuickActionTile(
-                        icon: Icons.volunteer_activism_rounded,
-                        title: 'Tasbih',
-                        accent: const Color(0xFFFFB175),
-                        onTap: () => _showComingSoon(context),
-                      ),
-                    ],
-                  ),
+                    ),
+                    const SizedBox(height: 22),
+                    const _SectionTitle(title: 'Top Reciters'),
+                    const SizedBox(height: 10),
+                    ..._reciterTiles(
+                      context: context,
+                      ref: ref,
+                      surahs: surahs,
+                    ),
+                  ],
                 ),
-                const SizedBox(height: 22),
-                const _SectionTitle(title: 'Top Reciters'),
-                const SizedBox(height: 10),
-                ..._reciterTiles(context: context, ref: ref, surahs: surahs),
-                const SizedBox(height: 10),
-              ],
-            ),
+              ),
+            ],
           ),
         ),
       ),
@@ -175,7 +197,7 @@ class DashboardPage extends ConsumerWidget {
     required WidgetRef ref,
     required List<SurahSummary> surahs,
   }) {
-    final topReciterIds = ['05', '03'];
+    final topReciterIds = ['05', '03', '01'];
 
     return topReciterIds.map((reciterId) {
       final reciterName = kReciters[reciterId] ?? 'Reciter';
@@ -186,8 +208,10 @@ class DashboardPage extends ConsumerWidget {
         child: _ReciterRow(
           name: reciterName,
           subtitle: reciterId == '05'
-              ? 'Trending - Murottal full surah'
-              : 'Popular - Pilihan pendengar',
+              ? 'Trending • 1.2M listeners'
+              : reciterId == '03'
+              ? 'Recent • Surah Yasin'
+              : 'Popular • Murottal Harian',
           onPlay: (surahs.isEmpty || startSurahId == null)
               ? null
               : () {
@@ -219,10 +243,10 @@ class DashboardPage extends ConsumerWidget {
     return surahs.first;
   }
 
-  void _showComingSoon(BuildContext context) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Fitur ini akan segera hadir.')),
-    );
+  void _showComingSoon(BuildContext context, {required String featureLabel}) {
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text('$featureLabel akan segera hadir.')));
   }
 }
 
@@ -270,6 +294,12 @@ class _DashboardHeader extends StatelessWidget {
                 decoration: BoxDecoration(
                   color: TawakkalColors.accentGold,
                   borderRadius: BorderRadius.circular(999),
+                  border: Border.all(
+                    color: isDark
+                        ? TawakkalColors.backgroundDark
+                        : TawakkalColors.backgroundLight,
+                    width: 2,
+                  ),
                 ),
                 child: Text(
                   'PRO',
@@ -311,9 +341,36 @@ class _DashboardHeader extends StatelessWidget {
           ),
         ),
         const SizedBox(width: 8),
-        IconButton.filledTonal(
-          onPressed: onNotificationsTap,
-          icon: const Icon(Icons.notifications_none_rounded),
+        Stack(
+          clipBehavior: Clip.none,
+          children: [
+            IconButton.filledTonal(
+              onPressed: onNotificationsTap,
+              icon: const Icon(Icons.notifications_none_rounded),
+              style: IconButton.styleFrom(
+                backgroundColor: isDark
+                    ? TawakkalColors.surfaceDark.withValues(alpha: 0.66)
+                    : Colors.white.withValues(alpha: 0.82),
+              ),
+            ),
+            Positioned(
+              right: 10,
+              top: 10,
+              child: Container(
+                width: 8,
+                height: 8,
+                decoration: BoxDecoration(
+                  color: const Color(0xFFFF4D4F),
+                  borderRadius: BorderRadius.circular(999),
+                  border: Border.all(
+                    color: isDark
+                        ? TawakkalColors.surfaceDark
+                        : TawakkalColors.backgroundLight,
+                  ),
+                ),
+              ),
+            ),
+          ],
         ),
       ],
     );
@@ -333,7 +390,8 @@ class _TodayGoalCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final percent = (ratio * 100).round();
+    final safeRatio = ratio.clamp(0.0, 1.0);
+    final percent = (safeRatio * 100).round();
 
     return Container(
       padding: const EdgeInsets.all(18),
@@ -344,6 +402,7 @@ class _TodayGoalCard extends StatelessWidget {
           end: Alignment.bottomRight,
           colors: [Color(0xFF182523), Color(0xFF1E2F2B)],
         ),
+        border: Border.all(color: const Color(0x16FFFFFF)),
         boxShadow: [
           BoxShadow(
             color: TawakkalColors.primary.withValues(alpha: 0.16),
@@ -352,93 +411,114 @@ class _TodayGoalCard extends StatelessWidget {
           ),
         ],
       ),
-      child: Row(
+      child: Stack(
         children: [
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
+          Positioned(
+            top: -42,
+            right: -42,
+            child: Container(
+              width: 128,
+              height: 128,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: TawakkalColors.primary.withValues(alpha: 0.08),
+              ),
+            ),
+          ),
+          Row(
+            children: [
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Icon(
-                      Icons.emoji_events_rounded,
-                      color: TawakkalColors.accentGold,
+                    Row(
+                      children: [
+                        const Icon(
+                          Icons.emoji_events_rounded,
+                          color: TawakkalColors.accentGold,
+                        ),
+                        const SizedBox(width: 8),
+                        Text(
+                          "Today's Goal",
+                          style: Theme.of(context).textTheme.titleMedium
+                              ?.copyWith(
+                                color: Colors.white,
+                                fontWeight: FontWeight.w700,
+                              ),
+                        ),
+                      ],
                     ),
-                    const SizedBox(width: 8),
+                    const SizedBox(height: 10),
+                    RichText(
+                      text: TextSpan(
+                        style: Theme.of(context).textTheme.headlineSmall
+                            ?.copyWith(
+                              color: TawakkalColors.primary,
+                              fontWeight: FontWeight.w800,
+                            ),
+                        children: [
+                          TextSpan(text: '$currentMinutes'),
+                          TextSpan(
+                            text: ' / $targetMinutes mins',
+                            style: Theme.of(context).textTheme.bodyMedium
+                                ?.copyWith(
+                                  color: TawakkalColors.textSecondary,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 10),
+                    ClipRRect(
+                      borderRadius: BorderRadius.circular(999),
+                      child: LinearProgressIndicator(
+                        value: safeRatio,
+                        minHeight: 7,
+                        backgroundColor: const Color(0x22FFFFFF),
+                        valueColor: const AlwaysStoppedAnimation<Color>(
+                          TawakkalColors.primary,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 8),
                     Text(
-                      "Today's Goal",
-                      style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                      percent >= 70
+                          ? 'Great job! You are almost there.'
+                          : 'Keep going. Every minute builds consistency.',
+                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                        color: TawakkalColors.textSecondary,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 14),
+              SizedBox(
+                width: 76,
+                height: 76,
+                child: Stack(
+                  alignment: Alignment.center,
+                  children: [
+                    CircularProgressIndicator(
+                      value: safeRatio,
+                      strokeWidth: 6,
+                      backgroundColor: const Color(0x1FFFFFFF),
+                      valueColor: const AlwaysStoppedAnimation<Color>(
+                        TawakkalColors.primary,
+                      ),
+                    ),
+                    Text(
+                      '$percent%',
+                      style: Theme.of(context).textTheme.labelLarge?.copyWith(
                         color: Colors.white,
                         fontWeight: FontWeight.w700,
                       ),
                     ),
                   ],
                 ),
-                const SizedBox(height: 10),
-                RichText(
-                  text: TextSpan(
-                    style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                      color: TawakkalColors.primary,
-                      fontWeight: FontWeight.w800,
-                    ),
-                    children: [
-                      TextSpan(text: '$currentMinutes'),
-                      TextSpan(
-                        text: ' / $targetMinutes mins',
-                        style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                          color: TawakkalColors.textSecondary,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                const SizedBox(height: 10),
-                ClipRRect(
-                  borderRadius: BorderRadius.circular(999),
-                  child: LinearProgressIndicator(
-                    value: ratio.clamp(0, 1),
-                    minHeight: 7,
-                    backgroundColor: const Color(0x22FFFFFF),
-                    valueColor: const AlwaysStoppedAnimation<Color>(
-                      TawakkalColors.primary,
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 8),
-                Text(
-                  'Great progress. Keep your learning momentum today.',
-                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                    color: TawakkalColors.textSecondary,
-                  ),
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(width: 14),
-          SizedBox(
-            width: 76,
-            height: 76,
-            child: Stack(
-              alignment: Alignment.center,
-              children: [
-                CircularProgressIndicator(
-                  value: ratio.clamp(0, 1),
-                  strokeWidth: 6,
-                  backgroundColor: const Color(0x1FFFFFFF),
-                  valueColor: const AlwaysStoppedAnimation<Color>(
-                    TawakkalColors.primary,
-                  ),
-                ),
-                Text(
-                  '$percent%',
-                  style: Theme.of(context).textTheme.labelLarge?.copyWith(
-                    color: Colors.white,
-                    fontWeight: FontWeight.w700,
-                  ),
-                ),
-              ],
-            ),
+              ),
+            ],
           ),
         ],
       ),
@@ -450,11 +530,13 @@ class _ContinueLearningCard extends StatelessWidget {
   const _ContinueLearningCard({
     required this.surah,
     required this.completion,
+    required this.currentAyah,
     required this.onResumeTap,
   });
 
   final SurahSummary? surah;
   final double completion;
+  final int currentAyah;
   final VoidCallback? onResumeTap;
 
   @override
@@ -463,9 +545,9 @@ class _ContinueLearningCard extends StatelessWidget {
     final completionLabel = '${(safeCompletion * 100).round()}%';
 
     return Container(
-      constraints: const BoxConstraints(minHeight: 220),
+      constraints: const BoxConstraints(minHeight: 226),
       decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(28),
+        borderRadius: BorderRadius.circular(30),
         gradient: const LinearGradient(
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
@@ -476,46 +558,80 @@ class _ContinueLearningCard extends StatelessWidget {
       child: Stack(
         children: [
           Positioned(
-            top: -40,
-            right: -40,
+            top: -50,
+            right: -44,
             child: Container(
-              width: 160,
-              height: 160,
+              width: 165,
+              height: 165,
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
                 color: TawakkalColors.primary.withValues(alpha: 0.08),
               ),
             ),
           ),
+          Positioned.fill(
+            child: DecoratedBox(
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(30),
+                gradient: const LinearGradient(
+                  begin: Alignment.bottomCenter,
+                  end: Alignment.topCenter,
+                  colors: [
+                    Color(0xB3111816),
+                    Color(0x66111816),
+                    Color(0x33111816),
+                  ],
+                ),
+              ),
+            ),
+          ),
           Padding(
             padding: const EdgeInsets.all(18),
             child: Column(
+              mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 8,
-                    vertical: 4,
-                  ),
-                  decoration: BoxDecoration(
-                    color: Colors.white.withValues(alpha: 0.08),
-                    borderRadius: BorderRadius.circular(999),
-                    border: Border.all(
-                      color: Colors.white.withValues(alpha: 0.1),
+                Row(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 8,
+                        vertical: 4,
+                      ),
+                      decoration: BoxDecoration(
+                        color: Colors.white.withValues(alpha: 0.08),
+                        borderRadius: BorderRadius.circular(999),
+                        border: Border.all(color: const Color(0x24FFFFFF)),
+                      ),
+                      child: Text(
+                        'IN PROGRESS',
+                        style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                          color: Colors.white,
+                          letterSpacing: 0.8,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
                     ),
-                  ),
-                  child: Text(
-                    'IN PROGRESS',
-                    style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                      color: Colors.white,
-                      letterSpacing: 0.8,
-                      fontWeight: FontWeight.w700,
+                    const Spacer(),
+                    Container(
+                      width: 36,
+                      height: 36,
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        color: const Color(0x20FFFFFF),
+                        border: Border.all(color: const Color(0x1EFFFFFF)),
+                      ),
+                      child: const Icon(
+                        Icons.bookmark_rounded,
+                        color: Colors.white,
+                        size: 20,
+                      ),
                     ),
-                  ),
+                  ],
                 ),
                 const SizedBox(height: 12),
                 Text(
-                  surah?.nameLatin ?? 'No Surah yet',
+                  surah == null ? 'No Surah yet' : 'Surah ${surah!.nameLatin}',
                   style: Theme.of(context).textTheme.headlineSmall?.copyWith(
                     color: Colors.white,
                     fontWeight: FontWeight.w800,
@@ -526,34 +642,48 @@ class _ContinueLearningCard extends StatelessWidget {
                   Text(
                     surah!.nameArabic,
                     textDirection: TextDirection.rtl,
-                    style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                    style: TawakkalTypography.arabicLabelStyle(
                       color: TawakkalColors.textSecondary,
-                      fontWeight: FontWeight.w700,
+                      size: 24,
+                      weight: FontWeight.w500,
                     ),
                   ),
                 const SizedBox(height: 4),
                 Text(
                   surah == null
                       ? 'Start your first learning journey.'
-                      : '${surah!.meaning} - ${surah!.ayahCount} ayat',
+                      : '${surah!.meaning} • Ayah $currentAyah',
                   style: Theme.of(context).textTheme.bodySmall?.copyWith(
                     color: TawakkalColors.textSecondary,
                   ),
                 ),
-                const Spacer(),
+                const SizedBox(height: 14),
                 Row(
+                  crossAxisAlignment: CrossAxisAlignment.end,
                   children: [
                     Expanded(
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Text(
-                            '$completionLabel Completed',
-                            style: Theme.of(context).textTheme.titleSmall
-                                ?.copyWith(
-                                  color: Colors.white,
-                                  fontWeight: FontWeight.w700,
+                          RichText(
+                            text: TextSpan(
+                              style: Theme.of(context).textTheme.titleSmall
+                                  ?.copyWith(
+                                    color: Colors.white,
+                                    fontWeight: FontWeight.w700,
+                                  ),
+                              children: [
+                                TextSpan(text: completionLabel),
+                                TextSpan(
+                                  text: ' Completed',
+                                  style: Theme.of(context).textTheme.bodyMedium
+                                      ?.copyWith(
+                                        color: TawakkalColors.textSecondary,
+                                        fontWeight: FontWeight.w500,
+                                      ),
                                 ),
+                              ],
+                            ),
                           ),
                           const SizedBox(height: 8),
                           ClipRRect(
@@ -567,6 +697,8 @@ class _ContinueLearningCard extends StatelessWidget {
                               ),
                             ),
                           ),
+                          const SizedBox(height: 8),
+                          const _AvatarStack(),
                         ],
                       ),
                     ),
@@ -587,11 +719,86 @@ class _ContinueLearningCard extends StatelessWidget {
   }
 }
 
+class _AvatarStack extends StatelessWidget {
+  const _AvatarStack();
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: [
+        _miniAvatar(
+          context: context,
+          initials: 'IM',
+          color: const Color(0xFF2D3F3A),
+        ),
+        Transform.translate(
+          offset: const Offset(-8, 0),
+          child: _miniAvatar(
+            context: context,
+            initials: 'YN',
+            color: const Color(0xFF2A3632),
+          ),
+        ),
+        Transform.translate(
+          offset: const Offset(-16, 0),
+          child: Container(
+            width: 24,
+            height: 24,
+            alignment: Alignment.center,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              color: TawakkalColors.surfaceDarkAlt,
+              border: Border.all(color: const Color(0x22FFFFFF)),
+            ),
+            child: Text(
+              '+3',
+              style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                color: TawakkalColors.textSecondary,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _miniAvatar({
+    required BuildContext context,
+    required String initials,
+    required Color color,
+  }) {
+    return Container(
+      width: 24,
+      height: 24,
+      alignment: Alignment.center,
+      decoration: BoxDecoration(
+        shape: BoxShape.circle,
+        color: color,
+        border: Border.all(color: const Color(0x2AFFFFFF)),
+      ),
+      child: Text(
+        initials,
+        style: Theme.of(context).textTheme.labelSmall?.copyWith(
+          color: Colors.white,
+          fontWeight: FontWeight.w700,
+          fontSize: 8,
+        ),
+      ),
+    );
+  }
+}
+
 class _SectionTitle extends StatelessWidget {
-  const _SectionTitle({required this.title, this.actionLabel});
+  const _SectionTitle({
+    required this.title,
+    this.actionLabel,
+    this.onActionTap,
+  });
 
   final String title;
   final String? actionLabel;
+  final VoidCallback? onActionTap;
 
   @override
   Widget build(BuildContext context) {
@@ -599,14 +806,17 @@ class _SectionTitle extends StatelessWidget {
       children: [
         Text(
           title,
-          style: Theme.of(
-            context,
-          ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w800),
+          style: Theme.of(context).textTheme.titleLarge?.copyWith(
+            color: Theme.of(context).brightness == Brightness.dark
+                ? TawakkalColors.textPrimaryDark
+                : TawakkalColors.textPrimaryLight,
+            fontWeight: FontWeight.w800,
+          ),
         ),
         const Spacer(),
         if (actionLabel != null)
           TextButton(
-            onPressed: () {},
+            onPressed: onActionTap,
             child: Text(
               actionLabel!,
               style: const TextStyle(
@@ -636,6 +846,9 @@ class _QuickActionTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
+    final subtitleColor = isDark
+        ? TawakkalColors.textSecondary
+        : TawakkalColors.textPrimaryLight.withValues(alpha: 0.68);
 
     return Padding(
       padding: const EdgeInsets.only(right: 10),
@@ -643,36 +856,56 @@ class _QuickActionTile extends StatelessWidget {
         borderRadius: BorderRadius.circular(20),
         onTap: onTap,
         child: Ink(
-          width: 104,
+          width: 108,
           padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 12),
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(20),
             color: isDark
-                ? TawakkalColors.surfaceDark.withValues(alpha: 0.8)
+                ? TawakkalColors.surfaceDark.withValues(alpha: 0.82)
                 : TawakkalColors.surfaceLightAlt,
             border: Border.all(
               color: isDark ? const Color(0x16FFFFFF) : const Color(0x12000000),
             ),
           ),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
+          child: Stack(
             children: [
-              Container(
-                width: 38,
-                height: 38,
-                decoration: BoxDecoration(
-                  color: accent.withValues(alpha: 0.18),
-                  shape: BoxShape.circle,
+              Positioned.fill(
+                child: DecoratedBox(
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(20),
+                    gradient: LinearGradient(
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                      colors: [
+                        accent.withValues(alpha: 0.07),
+                        Colors.transparent,
+                      ],
+                    ),
+                  ),
                 ),
-                child: Icon(icon, color: accent),
               ),
-              const SizedBox(height: 8),
-              Text(
-                title,
-                textAlign: TextAlign.center,
-                style: Theme.of(
-                  context,
-                ).textTheme.labelMedium?.copyWith(fontWeight: FontWeight.w700),
+              Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Container(
+                    width: 38,
+                    height: 38,
+                    decoration: BoxDecoration(
+                      color: accent.withValues(alpha: 0.18),
+                      shape: BoxShape.circle,
+                    ),
+                    child: Icon(icon, color: accent),
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    title,
+                    textAlign: TextAlign.center,
+                    style: Theme.of(context).textTheme.labelMedium?.copyWith(
+                      color: subtitleColor,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ],
               ),
             ],
           ),
@@ -696,6 +929,9 @@ class _ReciterRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
+    final titleColor = isDark
+        ? TawakkalColors.textPrimaryDark
+        : TawakkalColors.textPrimaryLight;
 
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
@@ -734,9 +970,10 @@ class _ReciterRow extends StatelessWidget {
               children: [
                 Text(
                   name,
-                  style: Theme.of(
-                    context,
-                  ).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w700),
+                  style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                    color: titleColor,
+                    fontWeight: FontWeight.w700,
+                  ),
                 ),
                 const SizedBox(height: 2),
                 Text(
@@ -751,6 +988,14 @@ class _ReciterRow extends StatelessWidget {
           IconButton.filled(
             onPressed: onPlay,
             icon: const Icon(Icons.play_arrow_rounded),
+            style: IconButton.styleFrom(
+              backgroundColor: isDark
+                  ? Colors.white.withValues(alpha: 0.08)
+                  : TawakkalColors.primary.withValues(alpha: 0.16),
+              foregroundColor: isDark
+                  ? Colors.white
+                  : TawakkalColors.backgroundDark,
+            ),
           ),
         ],
       ),

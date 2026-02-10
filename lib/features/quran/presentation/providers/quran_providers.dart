@@ -38,6 +38,8 @@ final quranActionsProvider = Provider<QuranActions>((ref) {
   return QuranActions(repository: repository, ref: ref);
 });
 
+final bookmarkRefreshTickProvider = StateProvider<int>((ref) => 0);
+
 final ayahBookmarkProvider = FutureProvider.family<bool, AyahLocator>((
   ref,
   locator,
@@ -85,6 +87,9 @@ class QuranActions {
       bookmarked: bookmarked,
     );
     _ref.invalidate(ayahBookmarkProvider(AyahLocator(surahId, ayahNumber)));
+    _ref
+        .read(bookmarkRefreshTickProvider.notifier)
+        .update((state) => state + 1);
     await _ref.read(progressActionsProvider).syncPendingData();
   }
 

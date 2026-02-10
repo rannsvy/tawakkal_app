@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../app/theme/colors.dart';
+import '../../../../app/theme/typography.dart';
 import '../../../../core/config/app_config.dart';
 import '../../../../core/constants/reciters.dart';
 import '../../../../shared/widgets/async_state_view.dart';
@@ -619,9 +620,10 @@ class _AudioSurahTile extends StatelessWidget {
                 Text(
                   surah.nameArabic,
                   textDirection: TextDirection.rtl,
-                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                  style: TawakkalTypography.arabicLabelStyle(
                     color: subtitleColor,
-                    fontWeight: FontWeight.w700,
+                    size: 20,
+                    weight: FontWeight.w500,
                   ),
                 ),
                 const SizedBox(height: 2),

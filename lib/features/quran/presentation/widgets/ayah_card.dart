@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../app/theme/colors.dart';
 import '../../../../app/theme/typography.dart';
+import '../../../../shared/utils/arabic_ayah_marker.dart';
 import '../../../../shared/widgets/rich_info_card.dart';
 import '../../domain/entities/ayah.dart';
 import '../providers/quran_providers.dart';
@@ -26,6 +27,8 @@ class AyahCard extends ConsumerWidget {
     final subtitleColor = isDark
         ? TawakkalColors.textSecondary
         : TawakkalColors.textPrimaryLight.withValues(alpha: 0.7);
+    final arabicColor = isDark ? Colors.white : TawakkalColors.textPrimaryLight;
+    final ayahEndingMarker = formatAyahEndingMarker(ayah.ayahNumber);
 
     return RichInfoCard(
       borderRadius: 18,
@@ -34,27 +37,8 @@ class AyahCard extends ConsumerWidget {
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           Row(
+            mainAxisAlignment: MainAxisAlignment.end,
             children: [
-              Container(
-                width: 30,
-                height: 30,
-                alignment: Alignment.center,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  color: TawakkalColors.primary.withValues(alpha: 0.2),
-                  border: Border.all(
-                    color: TawakkalColors.primary.withValues(alpha: 0.4),
-                  ),
-                ),
-                child: Text(
-                  '${ayah.ayahNumber}',
-                  style: Theme.of(context).textTheme.labelMedium?.copyWith(
-                    color: TawakkalColors.primary,
-                    fontWeight: FontWeight.w800,
-                  ),
-                ),
-              ),
-              const Spacer(),
               IconButton(
                 tooltip: 'Putar audio ayat',
                 onPressed: onPlayPressed,
@@ -92,12 +76,25 @@ class AyahCard extends ConsumerWidget {
             ],
           ),
           const SizedBox(height: 10),
-          Text(
-            ayah.textArabic,
-            textAlign: TextAlign.right,
-            style: TawakkalTypography.arabicStyle(
-              color: isDark ? Colors.white : TawakkalColors.textPrimaryLight,
+          Text.rich(
+            TextSpan(
+              children: [
+                TextSpan(
+                  text: ayah.textArabic,
+                  style: TawakkalTypography.arabicStyle(color: arabicColor),
+                ),
+                if (ayahEndingMarker.isNotEmpty)
+                  TextSpan(
+                    text: '\u00A0$ayahEndingMarker',
+                    style: TawakkalTypography.arabicStyle(
+                      color: arabicColor,
+                      size: 28,
+                    ).copyWith(fontWeight: FontWeight.w500),
+                  ),
+              ],
             ),
+            textAlign: TextAlign.right,
+            textDirection: TextDirection.rtl,
           ),
           const SizedBox(height: 12),
           Text(

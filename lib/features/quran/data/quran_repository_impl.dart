@@ -2,6 +2,7 @@ import 'dart:convert';
 
 import '../../../core/storage/sqlite/app_database.dart';
 import '../../../core/utils/html_utils.dart';
+import '../domain/entities/bookmark.dart';
 import '../domain/entities/ayah.dart';
 import '../domain/entities/surah.dart';
 import '../domain/repositories/quran_repository.dart';
@@ -184,6 +185,23 @@ class QuranRepositoryImpl implements QuranRepository {
       surahId: surahId,
       ayahNumber: ayahNumber,
     );
+  }
+
+  @override
+  Future<List<BookmarkedAyah>> getBookmarkedAyahs({
+    required String userLocalId,
+  }) async {
+    final rows = await _database.getBookmarks(userLocalId: userLocalId);
+    return rows.map((row) {
+      final createdAtString = row['created_at'] as String?;
+      return BookmarkedAyah(
+        surahId: (row['surah_id'] as int?) ?? 0,
+        ayahNumber: (row['ayah_number'] as int?) ?? 0,
+        createdAt:
+            DateTime.tryParse(createdAtString ?? '') ??
+            DateTime.fromMillisecondsSinceEpoch(0),
+      );
+    }).toList();
   }
 
   SurahSummary _surahFromRemote(Map<String, dynamic> item) {

@@ -3,6 +3,7 @@ import 'package:go_router/go_router.dart';
 
 import '../features/auth/presentation/pages/auth_gate_page.dart';
 import '../features/home/presentation/pages/home_page.dart';
+import '../features/onboarding/presentation/pages/launch_experience_page.dart';
 import '../features/quran/presentation/pages/surah_detail_page.dart';
 import '../features/quiz/presentation/pages/quiz_page.dart';
 
@@ -11,6 +12,11 @@ final goRouterProvider = Provider<GoRouter>((ref) {
     routes: [
       GoRoute(
         path: '/',
+        name: LaunchExperiencePage.routeName,
+        builder: (context, state) => const LaunchExperiencePage(),
+      ),
+      GoRoute(
+        path: '/auth',
         name: AuthGatePage.routeName,
         builder: (context, state) => const AuthGatePage(),
       ),

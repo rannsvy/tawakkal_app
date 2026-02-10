@@ -1,3 +1,4 @@
+import '../entities/bookmark.dart';
 import '../entities/surah.dart';
 
 abstract class QuranRepository {
@@ -24,5 +25,8 @@ abstract class QuranRepository {
     required String userLocalId,
     required int surahId,
     required int ayahNumber,
+  });
+  Future<List<BookmarkedAyah>> getBookmarkedAyahs({
+    required String userLocalId,
   });
 }

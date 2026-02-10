@@ -6,7 +6,6 @@ import '../../../audio/presentation/widgets/persistent_mini_player.dart';
 import '../../../dashboard/presentation/pages/dashboard_page.dart';
 import '../../../learning/presentation/pages/learning_page.dart';
 import '../../../profile/presentation/pages/profile_page.dart';
-import '../../../progress/presentation/widgets/progress_header_card.dart';
 import '../../../quran/presentation/pages/surah_list_page.dart';
 import '../widgets/tawakkal_bottom_dock_nav.dart';
 
@@ -65,19 +64,7 @@ class _QuranTab extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return SafeArea(
-      bottom: false,
-      child: Column(
-        children: const [
-          _SectionHeader(title: 'Quran'),
-          Padding(
-            padding: EdgeInsets.fromLTRB(16, 2, 16, 8),
-            child: ProgressHeaderCard(),
-          ),
-          Expanded(child: SurahListPage()),
-        ],
-      ),
-    );
+    return const SafeArea(bottom: false, child: SurahListPage());
   }
 }
 

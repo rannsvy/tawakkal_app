@@ -270,6 +270,19 @@ class AppDatabase {
     );
   }
 
+  Future<List<Map<String, Object?>>> getBookmarks({
+    required String userLocalId,
+  }) async {
+    final db = await database;
+    return db.query(
+      'bookmarks',
+      columns: ['surah_id', 'ayah_number', 'created_at'],
+      where: 'user_local_id = ?',
+      whereArgs: [userLocalId],
+      orderBy: 'created_at DESC',
+    );
+  }
+
   Future<bool> isBookmarked({
     required String userLocalId,
     required int surahId,

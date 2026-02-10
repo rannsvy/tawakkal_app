@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../app/theme/colors.dart';
+import '../../../../app/theme/typography.dart';
 import '../../../../core/config/app_config.dart';
 import '../../../../core/constants/reciters.dart';
 import '../../../../shared/widgets/async_state_view.dart';
@@ -51,13 +52,13 @@ class SurahDetailPage extends ConsumerWidget {
                       Text(
                         detail.summary.nameArabic,
                         textAlign: TextAlign.right,
-                        style: Theme.of(context).textTheme.headlineMedium
-                            ?.copyWith(
-                              color: isDark
-                                  ? Colors.white
-                                  : TawakkalColors.textPrimaryLight,
-                              fontWeight: FontWeight.w800,
-                            ),
+                        style: TawakkalTypography.arabicLabelStyle(
+                          color: isDark
+                              ? Colors.white
+                              : TawakkalColors.textPrimaryLight,
+                          size: 32,
+                          weight: FontWeight.w500,
+                        ),
                       ),
                       const SizedBox(height: 4),
                       Text(
