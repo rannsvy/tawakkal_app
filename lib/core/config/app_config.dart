@@ -20,8 +20,23 @@ class AppConfig {
     'AI_QUIZ_ENDPOINT',
     defaultValue: '',
   );
-  static const String openAiModel = String.fromEnvironment(
-    'OPENAI_MODEL',
-    defaultValue: 'gpt-4.1-mini',
+  static const String aiProvider = String.fromEnvironment(
+    'AI_PROVIDER',
+    defaultValue: 'nvidia',
   );
+  static const String aiModel = String.fromEnvironment(
+    'AI_MODEL',
+    defaultValue: 'z-ai/glm4.7',
+  );
+  static const bool aiQuizAlwaysFresh = bool.fromEnvironment(
+    'AI_QUIZ_ALWAYS_FRESH',
+    defaultValue: true,
+  );
+  static const int aiQuizRecentSignatureLimit = int.fromEnvironment(
+    'AI_QUIZ_RECENT_SIGNATURE_LIMIT',
+    defaultValue: 30,
+  );
+
+  @Deprecated('Use aiModel instead.')
+  static const String openAiModel = aiModel;
 }

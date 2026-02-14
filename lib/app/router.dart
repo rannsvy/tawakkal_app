@@ -6,6 +6,8 @@ import '../features/home/presentation/pages/home_page.dart';
 import '../features/onboarding/presentation/pages/launch_experience_page.dart';
 import '../features/quran/presentation/pages/surah_detail_page.dart';
 import '../features/quiz/presentation/pages/quiz_page.dart';
+import '../features/quiz/presentation/pages/quiz_result_page.dart';
+import '../features/quiz/domain/entities/quiz_result_models.dart';
 
 final goRouterProvider = Provider<GoRouter>((ref) {
   return GoRouter(
@@ -23,7 +25,10 @@ final goRouterProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: '/home',
         name: HomePage.routeName,
-        builder: (context, state) => const HomePage(),
+        builder: (context, state) {
+          final tabKey = state.uri.queryParameters['tab'];
+          return HomePage(initialTabIndex: _resolveHomeTabIndex(tabKey));
+        },
       ),
       GoRoute(
         path: '/surah/:surahId',
@@ -44,6 +49,32 @@ final goRouterProvider = Provider<GoRouter>((ref) {
           return QuizPage(surahId: surahId, difficultyKey: difficulty);
         },
       ),
+      GoRoute(
+        path: '/quiz/result',
+        name: QuizResultPage.routeName,
+        redirect: (context, state) {
+          return state.extra is QuizResultArgs ? null : '/home';
+        },
+        builder: (context, state) {
+          final args = state.extra! as QuizResultArgs;
+          return QuizResultPage(args: args);
+        },
+      ),
     ],
   );
 });
+
+int _resolveHomeTabIndex(String? value) {
+  switch (value?.trim().toLowerCase()) {
+    case 'quran':
+      return 1;
+    case 'learning':
+      return 2;
+    case 'audio':
+      return 3;
+    case 'profile':
+      return 4;
+    default:
+      return 0;
+  }
+}

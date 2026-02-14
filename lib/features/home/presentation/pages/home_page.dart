@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 import '../../../../app/theme/colors.dart';
+import '../../../../shared/widgets/rich_page_background.dart';
 import '../../../audio/presentation/pages/audio_page.dart';
 import '../../../audio/presentation/widgets/persistent_mini_player.dart';
 import '../../../dashboard/presentation/pages/dashboard_page.dart';
@@ -10,9 +12,10 @@ import '../../../quran/presentation/pages/surah_list_page.dart';
 import '../widgets/tawakkal_bottom_dock_nav.dart';
 
 class HomePage extends StatefulWidget {
-  const HomePage({super.key});
+  const HomePage({super.key, this.initialTabIndex = 0});
 
   static const routeName = 'home';
+  final int initialTabIndex;
 
   @override
   State<HomePage> createState() => _HomePageState();
@@ -21,41 +24,135 @@ class HomePage extends StatefulWidget {
 class _HomePageState extends State<HomePage> {
   int _index = 0;
 
+  @override
+  void initState() {
+    super.initState();
+    _index = _coerceTabIndex(widget.initialTabIndex);
+  }
+
+  @override
+  void didUpdateWidget(covariant HomePage oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.initialTabIndex != widget.initialTabIndex) {
+      setState(() {
+        _index = _coerceTabIndex(widget.initialTabIndex);
+      });
+    }
+  }
+
   void _selectTab(int index) {
     if (_index == index) {
       return;
     }
     setState(() {
-      _index = index;
+      _index = _coerceTabIndex(index);
     });
+  }
+
+  int _coerceTabIndex(int index) {
+    if (index < 0) {
+      return 0;
+    }
+    if (index > 4) {
+      return 4;
+    }
+    return index;
   }
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      extendBody: true,
-      body: IndexedStack(
-        index: _index,
-        children: [
-          DashboardPage(onSelectTab: _selectTab),
-          const _QuranTab(),
-          const _TabPage(title: 'Belajar', child: LearningPage()),
-          const _TabPage(title: 'Audio', showHeader: false, child: AudioPage()),
-          const _TabPage(title: 'Profil', child: ProfilePage()),
-        ],
-      ),
-      bottomNavigationBar: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          PersistentMiniPlayer(
-            onOpenPlayer: () {
-              _selectTab(3);
-            },
-          ),
-          TawakkalBottomDockNav(selectedIndex: _index, onSelected: _selectTab),
-        ],
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final overlayStyle =
+        (isDark ? SystemUiOverlayStyle.light : SystemUiOverlayStyle.dark)
+            .copyWith(
+              statusBarColor: isDark
+                  ? Colors.black
+                  : TawakkalColors.backgroundLight,
+              statusBarIconBrightness: isDark
+                  ? Brightness.light
+                  : Brightness.dark,
+              statusBarBrightness: isDark ? Brightness.dark : Brightness.light,
+              systemNavigationBarColor: isDark
+                  ? Colors.black
+                  : TawakkalColors.backgroundLight,
+              systemNavigationBarIconBrightness: isDark
+                  ? Brightness.light
+                  : Brightness.dark,
+              systemStatusBarContrastEnforced: false,
+              systemNavigationBarContrastEnforced: false,
+            );
+
+    return AnnotatedRegion<SystemUiOverlayStyle>(
+      value: overlayStyle,
+      child: Scaffold(
+        extendBody: true,
+        backgroundColor: Colors.transparent,
+        body: Stack(
+          children: [
+            RichPageBackground(
+              child: ScrollConfiguration(
+                behavior: const _HomeTabScrollBehavior(),
+                child: IndexedStack(
+                  index: _index,
+                  children: [
+                    DashboardPage(onSelectTab: _selectTab),
+                    const _QuranTab(),
+                    const _TabPage(title: 'Belajar', child: LearningPage()),
+                    const _TabPage(
+                      title: 'Audio',
+                      showHeader: false,
+                      child: AudioPage(),
+                    ),
+                    const _TabPage(title: 'Profil', child: ProfilePage()),
+                  ],
+                ),
+              ),
+            ),
+            Positioned(
+              top: 0,
+              left: 0,
+              right: 0,
+              height: MediaQuery.viewPaddingOf(context).top,
+              child: ColoredBox(
+                color: isDark ? Colors.black : TawakkalColors.backgroundLight,
+              ),
+            ),
+          ],
+        ),
+        bottomNavigationBar: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            PersistentMiniPlayer(
+              onOpenPlayer: () {
+                _selectTab(3);
+              },
+            ),
+            TawakkalBottomDockNav(
+              selectedIndex: _index,
+              onSelected: _selectTab,
+            ),
+          ],
+        ),
       ),
     );
+  }
+}
+
+class _HomeTabScrollBehavior extends MaterialScrollBehavior {
+  const _HomeTabScrollBehavior();
+
+  @override
+  ScrollPhysics getScrollPhysics(BuildContext context) {
+    return const ClampingScrollPhysics();
+  }
+
+  @override
+  Widget buildOverscrollIndicator(
+    BuildContext context,
+    Widget child,
+    ScrollableDetails details,
+  ) {
+    return child;
   }
 }
 

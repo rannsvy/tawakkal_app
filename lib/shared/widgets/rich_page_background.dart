@@ -16,13 +16,18 @@ class RichPageBackground extends StatelessWidget {
           begin: Alignment.topCenter,
           end: Alignment.bottomCenter,
           colors: isDark
-              ? const [TawakkalColors.backgroundDark, Color(0xFF141F1C)]
+              ? const [Colors.black, Colors.black]
               : const [TawakkalColors.backgroundLight, Color(0xFFEEF4F2)],
         ),
       ),
       child: CustomPaint(
         painter: _PatternPainter(
-          color: TawakkalColors.primary.withValues(alpha: isDark ? 0.06 : 0.04),
+          color: TawakkalColors.primary.withValues(
+            alpha: isDark ? 0.055 : 0.04,
+          ),
+          gap: isDark ? 40.0 : 42.0,
+          armHalfLength: isDark ? 3.6 : 4.0,
+          strokeWidth: isDark ? 1.15 : 1.2,
         ),
         child: child,
       ),
@@ -31,28 +36,46 @@ class RichPageBackground extends StatelessWidget {
 }
 
 class _PatternPainter extends CustomPainter {
-  _PatternPainter({required this.color});
+  _PatternPainter({
+    required this.color,
+    required this.gap,
+    required this.armHalfLength,
+    required this.strokeWidth,
+  });
 
   final Color color;
+  final double gap;
+  final double armHalfLength;
+  final double strokeWidth;
 
   @override
   void paint(Canvas canvas, Size size) {
     final paint = Paint()
       ..color = color
-      ..strokeWidth = 1.2
+      ..strokeWidth = strokeWidth
       ..strokeCap = StrokeCap.round;
 
-    const gap = 42.0;
     for (double y = 16; y < size.height; y += gap) {
       for (double x = 16; x < size.width; x += gap) {
-        canvas.drawLine(Offset(x - 4, y), Offset(x + 4, y), paint);
-        canvas.drawLine(Offset(x, y - 4), Offset(x, y + 4), paint);
+        canvas.drawLine(
+          Offset(x - armHalfLength, y),
+          Offset(x + armHalfLength, y),
+          paint,
+        );
+        canvas.drawLine(
+          Offset(x, y - armHalfLength),
+          Offset(x, y + armHalfLength),
+          paint,
+        );
       }
     }
   }
 
   @override
   bool shouldRepaint(covariant _PatternPainter oldDelegate) {
-    return oldDelegate.color != color;
+    return oldDelegate.color != color ||
+        oldDelegate.gap != gap ||
+        oldDelegate.armHalfLength != armHalfLength ||
+        oldDelegate.strokeWidth != strokeWidth;
   }
 }

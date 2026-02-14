@@ -30,9 +30,14 @@ class AppDatabase {
     final dbPath = p.join(directory.path, _dbName);
     return openDatabase(
       dbPath,
-      version: 1,
+      version: 2,
       onCreate: (db, version) async {
         await _createTables(db);
+      },
+      onUpgrade: (db, oldVersion, newVersion) async {
+        if (oldVersion < 2) {
+          await _createQuizQuestionHistoryTables(db);
+        }
       },
     );
   }
@@ -161,6 +166,31 @@ class AppDatabase {
         longest_streak INTEGER NOT NULL DEFAULT 0,
         last_active_date TEXT
       )
+    ''');
+
+    await _createQuizQuestionHistoryTables(db);
+  }
+
+  Future<void> _createQuizQuestionHistoryTables(DatabaseExecutor db) async {
+    await db.execute('''
+      CREATE TABLE IF NOT EXISTS quiz_question_history (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        user_local_id TEXT NOT NULL,
+        surah_id INTEGER NOT NULL,
+        difficulty TEXT NOT NULL,
+        language TEXT NOT NULL,
+        question_signature TEXT NOT NULL,
+        ayah_ref_primary TEXT,
+        created_at TEXT NOT NULL
+      )
+    ''');
+    await db.execute('''
+      CREATE INDEX IF NOT EXISTS idx_quiz_question_history_user_created
+      ON quiz_question_history(user_local_id, created_at DESC)
+    ''');
+    await db.execute('''
+      CREATE INDEX IF NOT EXISTS idx_quiz_question_history_scope
+      ON quiz_question_history(user_local_id, surah_id, difficulty, language, created_at DESC)
     ''');
   }
 
@@ -432,6 +462,78 @@ class AppDatabase {
       return null;
     }
     return rows.first;
+  }
+
+  Future<void> putQuizQuestionHistoryBatch({
+    required String userLocalId,
+    required int surahId,
+    required String difficulty,
+    required String language,
+    required List<String> signatures,
+    List<String> ayahRefs = const <String>[],
+    int keepRecent = 500,
+  }) async {
+    if (signatures.isEmpty) {
+      return;
+    }
+    final db = await database;
+    final nowIso = DateTime.now().toIso8601String();
+    await db.transaction((txn) async {
+      for (var i = 0; i < signatures.length; i++) {
+        final signature = signatures[i].trim();
+        if (signature.isEmpty) {
+          continue;
+        }
+        await txn.insert('quiz_question_history', <String, Object?>{
+          'user_local_id': userLocalId,
+          'surah_id': surahId,
+          'difficulty': difficulty,
+          'language': language,
+          'question_signature': signature,
+          'ayah_ref_primary': i < ayahRefs.length ? ayahRefs[i] : null,
+          'created_at': nowIso,
+        });
+      }
+
+      if (keepRecent > 0) {
+        await txn.execute(
+          '''
+          DELETE FROM quiz_question_history
+          WHERE user_local_id = ?
+            AND id NOT IN (
+              SELECT id FROM quiz_question_history
+              WHERE user_local_id = ?
+              ORDER BY created_at DESC, id DESC
+              LIMIT ?
+            )
+          ''',
+          <Object?>[userLocalId, userLocalId, keepRecent],
+        );
+      }
+    });
+  }
+
+  Future<List<String>> getRecentQuizQuestionSignatures({
+    required String userLocalId,
+    required int surahId,
+    required String difficulty,
+    required String language,
+    int limit = 30,
+  }) async {
+    final db = await database;
+    final rows = await db.query(
+      'quiz_question_history',
+      columns: ['question_signature'],
+      where:
+          'user_local_id = ? AND surah_id = ? AND difficulty = ? AND language = ?',
+      whereArgs: [userLocalId, surahId, difficulty, language],
+      orderBy: 'created_at DESC, id DESC',
+      limit: limit,
+    );
+    return rows
+        .map((row) => row['question_signature'] as String? ?? '')
+        .where((value) => value.trim().isNotEmpty)
+        .toList(growable: false);
   }
 
   Future<void> upsertLearningProgress({

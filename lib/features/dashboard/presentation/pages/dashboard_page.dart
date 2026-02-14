@@ -49,13 +49,18 @@ class DashboardPage extends ConsumerWidget {
           begin: Alignment.topCenter,
           end: Alignment.bottomCenter,
           colors: isDark
-              ? const [TawakkalColors.backgroundDark, Color(0xFF141F1C)]
+              ? const [Colors.black, Colors.black]
               : const [TawakkalColors.backgroundLight, Color(0xFFEEF4F2)],
         ),
       ),
       child: CustomPaint(
         painter: _PatternPainter(
-          color: TawakkalColors.primary.withValues(alpha: isDark ? 0.06 : 0.04),
+          color: TawakkalColors.primary.withValues(
+            alpha: isDark ? 0.055 : 0.04,
+          ),
+          gap: isDark ? 40.0 : 42.0,
+          armHalfLength: isDark ? 3.6 : 4.0,
+          strokeWidth: isDark ? 1.15 : 1.2,
         ),
         child: SafeArea(
           bottom: false,
@@ -71,7 +76,7 @@ class DashboardPage extends ConsumerWidget {
               ),
               Expanded(
                 child: ListView(
-                  physics: const BouncingScrollPhysics(
+                  physics: const ClampingScrollPhysics(
                     parent: AlwaysScrollableScrollPhysics(),
                   ),
                   padding: const EdgeInsets.fromLTRB(20, 10, 20, 140),
@@ -135,7 +140,7 @@ class DashboardPage extends ConsumerWidget {
                     SizedBox(
                       height: 116,
                       child: ListView(
-                        physics: const BouncingScrollPhysics(),
+                        physics: const ClampingScrollPhysics(),
                         scrollDirection: Axis.horizontal,
                         children: [
                           _QuickActionTile(
@@ -394,6 +399,7 @@ class _TodayGoalCard extends StatelessWidget {
     final percent = (safeRatio * 100).round();
 
     return Container(
+      clipBehavior: Clip.antiAlias,
       padding: const EdgeInsets.all(18),
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(24),
@@ -405,9 +411,9 @@ class _TodayGoalCard extends StatelessWidget {
         border: Border.all(color: const Color(0x16FFFFFF)),
         boxShadow: [
           BoxShadow(
-            color: TawakkalColors.primary.withValues(alpha: 0.16),
-            blurRadius: 24,
-            offset: const Offset(0, 10),
+            color: Colors.black.withValues(alpha: 0.34),
+            blurRadius: 18,
+            offset: const Offset(0, 8),
           ),
         ],
       ),
@@ -545,6 +551,7 @@ class _ContinueLearningCard extends StatelessWidget {
     final completionLabel = '${(safeCompletion * 100).round()}%';
 
     return Container(
+      clipBehavior: Clip.antiAlias,
       constraints: const BoxConstraints(minHeight: 226),
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(30),
@@ -1004,28 +1011,46 @@ class _ReciterRow extends StatelessWidget {
 }
 
 class _PatternPainter extends CustomPainter {
-  _PatternPainter({required this.color});
+  _PatternPainter({
+    required this.color,
+    required this.gap,
+    required this.armHalfLength,
+    required this.strokeWidth,
+  });
 
   final Color color;
+  final double gap;
+  final double armHalfLength;
+  final double strokeWidth;
 
   @override
   void paint(Canvas canvas, Size size) {
     final paint = Paint()
       ..color = color
-      ..strokeWidth = 1.2
+      ..strokeWidth = strokeWidth
       ..strokeCap = StrokeCap.round;
 
-    const gap = 42.0;
     for (double y = 16; y < size.height; y += gap) {
       for (double x = 16; x < size.width; x += gap) {
-        canvas.drawLine(Offset(x - 4, y), Offset(x + 4, y), paint);
-        canvas.drawLine(Offset(x, y - 4), Offset(x, y + 4), paint);
+        canvas.drawLine(
+          Offset(x - armHalfLength, y),
+          Offset(x + armHalfLength, y),
+          paint,
+        );
+        canvas.drawLine(
+          Offset(x, y - armHalfLength),
+          Offset(x, y + armHalfLength),
+          paint,
+        );
       }
     }
   }
 
   @override
   bool shouldRepaint(covariant _PatternPainter oldDelegate) {
-    return oldDelegate.color != color;
+    return oldDelegate.color != color ||
+        oldDelegate.gap != gap ||
+        oldDelegate.armHalfLength != armHalfLength ||
+        oldDelegate.strokeWidth != strokeWidth;
   }
 }

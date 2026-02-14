@@ -115,7 +115,9 @@ class _SurahListPageState extends ConsumerState<SurahListPage> {
                     }
 
                     return ListView.separated(
-                      physics: const AlwaysScrollableScrollPhysics(),
+                      physics: const ClampingScrollPhysics(
+                        parent: AlwaysScrollableScrollPhysics(),
+                      ),
                       padding: const EdgeInsets.fromLTRB(16, 0, 16, 120),
                       itemCount: filtered.length,
                       separatorBuilder: (context, index) =>
@@ -147,7 +149,9 @@ class _SurahListPageState extends ConsumerState<SurahListPage> {
                     }
 
                     return ListView.separated(
-                      physics: const AlwaysScrollableScrollPhysics(),
+                      physics: const ClampingScrollPhysics(
+                        parent: AlwaysScrollableScrollPhysics(),
+                      ),
                       padding: const EdgeInsets.fromLTRB(16, 0, 16, 120),
                       itemCount: filtered.length,
                       separatorBuilder: (context, index) =>
@@ -182,7 +186,9 @@ class _SurahListPageState extends ConsumerState<SurahListPage> {
                     }
 
                     return ListView.separated(
-                      physics: const AlwaysScrollableScrollPhysics(),
+                      physics: const ClampingScrollPhysics(
+                        parent: AlwaysScrollableScrollPhysics(),
+                      ),
                       padding: const EdgeInsets.fromLTRB(16, 0, 16, 120),
                       itemCount: filtered.length,
                       separatorBuilder: (context, index) =>
