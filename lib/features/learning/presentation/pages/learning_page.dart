@@ -216,8 +216,6 @@ class _LearningPageState extends ConsumerState<LearningPage> {
                   if (showToggle)
                     _SurahListToggle(
                       isExpanded: _showAllSurahs,
-                      visibleCount: visibleSurahs.length,
-                      totalCount: filteredSurahs.length,
                       onToggle: () {
                         setState(() {
                           _showAllSurahs = !_showAllSurahs;
@@ -311,48 +309,25 @@ class _SurahSearchField extends StatelessWidget {
 }
 
 class _SurahListToggle extends StatelessWidget {
-  const _SurahListToggle({
-    required this.isExpanded,
-    required this.visibleCount,
-    required this.totalCount,
-    required this.onToggle,
-  });
+  const _SurahListToggle({required this.isExpanded, required this.onToggle});
 
   final bool isExpanded;
-  final int visibleCount;
-  final int totalCount;
   final VoidCallback onToggle;
 
   @override
   Widget build(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    final subtitleColor = isDark
-        ? TawakkalColors.textSecondary
-        : TawakkalColors.textPrimaryLight.withValues(alpha: 0.68);
-
     return Padding(
       padding: const EdgeInsets.only(top: 2, bottom: 6),
       child: RichInfoCard(
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-        child: Row(
-          children: [
-            Expanded(
-              child: Text(
-                'Menampilkan $visibleCount dari $totalCount surah',
-                style: Theme.of(
-                  context,
-                ).textTheme.bodySmall?.copyWith(color: subtitleColor),
-              ),
+        child: Align(
+          alignment: Alignment.center,
+          child: TextButton(
+            onPressed: onToggle,
+            child: Text(
+              isExpanded ? 'Tampilkan lebih sedikit' : 'Tampilkan semua surah',
             ),
-            TextButton(
-              onPressed: onToggle,
-              child: Text(
-                isExpanded
-                    ? 'Tampilkan lebih sedikit'
-                    : 'Tampilkan semua surah',
-              ),
-            ),
-          ],
+          ),
         ),
       ),
     );
