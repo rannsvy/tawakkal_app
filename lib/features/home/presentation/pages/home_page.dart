@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
@@ -23,11 +25,16 @@ class HomePage extends StatefulWidget {
 
 class _HomePageState extends State<HomePage> {
   int _index = 0;
+  final GlobalKey _bodyContentKey = GlobalKey();
+  final GlobalKey _bottomChromeKey = GlobalKey();
+  bool _isOverlapMeasureScheduled = false;
+  double _belajarBottomOverlayOverlap = 0;
 
   @override
   void initState() {
     super.initState();
     _index = _coerceTabIndex(widget.initialTabIndex);
+    _scheduleBottomOverlayOverlapMeasurement();
   }
 
   @override
@@ -37,7 +44,14 @@ class _HomePageState extends State<HomePage> {
       setState(() {
         _index = _coerceTabIndex(widget.initialTabIndex);
       });
+      _scheduleBottomOverlayOverlapMeasurement();
     }
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    _scheduleBottomOverlayOverlapMeasurement();
   }
 
   void _selectTab(int index) {
@@ -46,6 +60,52 @@ class _HomePageState extends State<HomePage> {
     }
     setState(() {
       _index = _coerceTabIndex(index);
+    });
+    _scheduleBottomOverlayOverlapMeasurement();
+  }
+
+  void _scheduleBottomOverlayOverlapMeasurement() {
+    if (_isOverlapMeasureScheduled) {
+      return;
+    }
+    _isOverlapMeasureScheduled = true;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _isOverlapMeasureScheduled = false;
+      _recalculateBottomOverlayOverlap();
+    });
+  }
+
+  void _recalculateBottomOverlayOverlap() {
+    if (!mounted) {
+      return;
+    }
+
+    final bodyContext = _bodyContentKey.currentContext;
+    final bottomChromeContext = _bottomChromeKey.currentContext;
+    if (bodyContext == null || bottomChromeContext == null) {
+      return;
+    }
+
+    final bodyObject = bodyContext.findRenderObject();
+    final bottomChromeObject = bottomChromeContext.findRenderObject();
+    if (bodyObject is! RenderBox || bottomChromeObject is! RenderBox) {
+      return;
+    }
+    if (!bodyObject.hasSize || !bottomChromeObject.hasSize) {
+      return;
+    }
+
+    final bodyTop = bodyObject.localToGlobal(Offset.zero).dy;
+    final bodyBottom = bodyTop + bodyObject.size.height;
+    final bottomChromeTop = bottomChromeObject.localToGlobal(Offset.zero).dy;
+    final overlap = math.max(0.0, bodyBottom - bottomChromeTop);
+
+    if ((overlap - _belajarBottomOverlayOverlap).abs() <= 0.5) {
+      return;
+    }
+
+    setState(() {
+      _belajarBottomOverlayOverlap = overlap;
     });
   }
 
@@ -87,52 +147,70 @@ class _HomePageState extends State<HomePage> {
       child: Scaffold(
         extendBody: true,
         backgroundColor: Colors.transparent,
-        body: Stack(
-          children: [
-            RichPageBackground(
-              child: ScrollConfiguration(
-                behavior: const _HomeTabScrollBehavior(),
-                child: IndexedStack(
-                  index: _index,
+        body: SizedBox.expand(
+          key: _bodyContentKey,
+          child: Stack(
+            children: [
+              RichPageBackground(
+                child: ScrollConfiguration(
+                  behavior: const _HomeTabScrollBehavior(),
+                  child: IndexedStack(
+                    index: _index,
+                    children: [
+                      DashboardPage(onSelectTab: _selectTab),
+                      const _QuranTab(),
+                      _TabPage(
+                        title: 'Belajar',
+                        child: LearningPage(
+                          bottomOverlayOverlap: _belajarBottomOverlayOverlap,
+                        ),
+                      ),
+                      const _TabPage(
+                        title: 'Audio',
+                        showHeader: false,
+                        child: AudioPage(),
+                      ),
+                      const _TabPage(title: 'Profil', child: ProfilePage()),
+                    ],
+                  ),
+                ),
+              ),
+              Positioned(
+                top: 0,
+                left: 0,
+                right: 0,
+                height: MediaQuery.viewPaddingOf(context).top,
+                child: ColoredBox(
+                  color: isDark ? Colors.black : TawakkalColors.backgroundLight,
+                ),
+              ),
+            ],
+          ),
+        ),
+        bottomNavigationBar:
+            NotificationListener<SizeChangedLayoutNotification>(
+              onNotification: (_) {
+                _scheduleBottomOverlayOverlapMeasurement();
+                return false;
+              },
+              child: SizeChangedLayoutNotifier(
+                child: Column(
+                  key: _bottomChromeKey,
+                  mainAxisSize: MainAxisSize.min,
                   children: [
-                    DashboardPage(onSelectTab: _selectTab),
-                    const _QuranTab(),
-                    const _TabPage(title: 'Belajar', child: LearningPage()),
-                    const _TabPage(
-                      title: 'Audio',
-                      showHeader: false,
-                      child: AudioPage(),
+                    PersistentMiniPlayer(
+                      onOpenPlayer: () {
+                        _selectTab(3);
+                      },
                     ),
-                    const _TabPage(title: 'Profil', child: ProfilePage()),
+                    TawakkalBottomDockNav(
+                      selectedIndex: _index,
+                      onSelected: _selectTab,
+                    ),
                   ],
                 ),
               ),
             ),
-            Positioned(
-              top: 0,
-              left: 0,
-              right: 0,
-              height: MediaQuery.viewPaddingOf(context).top,
-              child: ColoredBox(
-                color: isDark ? Colors.black : TawakkalColors.backgroundLight,
-              ),
-            ),
-          ],
-        ),
-        bottomNavigationBar: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            PersistentMiniPlayer(
-              onOpenPlayer: () {
-                _selectTab(3);
-              },
-            ),
-            TawakkalBottomDockNav(
-              selectedIndex: _index,
-              onSelected: _selectTab,
-            ),
-          ],
-        ),
       ),
     );
   }
