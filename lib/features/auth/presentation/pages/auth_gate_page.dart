@@ -3,16 +3,55 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../../app/theme/colors.dart';
-import '../../../../core/config/app_config.dart';
+import '../../../onboarding/presentation/widgets/islamic_pattern_painter.dart';
 import '../providers/auth_providers.dart';
+import '../widgets/auth_hero_section.dart';
+import '../widgets/auth_options_card.dart';
+import '../widgets/email_signin_sheet.dart';
 
-class AuthGatePage extends ConsumerWidget {
+/// The authentication gate page.
+/// Features:
+/// - Islamic geometric pattern background
+/// - Staggered entrance animations
+/// - Clear visual hierarchy (Email primary, Google secondary, Guest tertiary)
+/// - Glassmorphism auth container
+class AuthGatePage extends ConsumerStatefulWidget {
   const AuthGatePage({super.key});
 
   static const routeName = 'auth-gate';
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<AuthGatePage> createState() => _AuthGatePageState();
+}
+
+class _AuthGatePageState extends ConsumerState<AuthGatePage>
+    with SingleTickerProviderStateMixin {
+  late AnimationController _containerAnimation;
+
+  @override
+  void initState() {
+    super.initState();
+    _containerAnimation = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 600),
+    );
+
+    // Start container animation after hero section (450ms delay)
+    Future.delayed(const Duration(milliseconds: 450), () {
+      if (mounted) {
+        _containerAnimation.forward();
+      }
+    });
+  }
+
+  @override
+  void dispose() {
+    _containerAnimation.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
     ref.listen<AsyncValue>(authControllerProvider, (previous, next) {
       final user = next.asData?.value;
       if (user != null && context.mounted) {
@@ -22,154 +61,122 @@ class AuthGatePage extends ConsumerWidget {
 
     final state = ref.watch(authControllerProvider);
     final isLoading = state.isLoading;
-    final isDark = Theme.of(context).brightness == Brightness.dark;
 
     return Scaffold(
-      body: Container(
-        decoration: BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topCenter,
-            end: Alignment.bottomCenter,
-            colors: isDark
-                ? const <Color>[
-                    TawakkalColors.backgroundDark,
-                    Color(0xFF151E1C),
-                  ]
-                : const <Color>[
-                    TawakkalColors.backgroundLight,
-                    Color(0xFFE8F1E6),
-                  ],
-          ),
-        ),
-        child: SafeArea(
-          child: Padding(
-            padding: const EdgeInsets.all(24),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                const Spacer(),
-                Text(
-                  AppConfig.appName,
-                  style: Theme.of(context).textTheme.displayMedium?.copyWith(
-                    color: TawakkalColors.primaryDark,
+      body: Stack(
+        children: [
+          // Islamic pattern background
+          _buildPatternBackground(),
+          // Main content
+          SafeArea(
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 24),
+              child: Column(
+                children: [
+                  const Spacer(flex: 2),
+                  // Hero section with animated logo
+                  const AuthHeroSection(),
+                  const Spacer(flex: 3),
+                  // Auth options card with staggered animation
+                  AnimatedBuilder(
+                    animation: _containerAnimation,
+                    builder: (context, child) {
+                      return Transform.translate(
+                        offset: Offset(0, 40 * (1 - _containerAnimation.value)),
+                        child: Opacity(
+                          opacity: _containerAnimation.value,
+                          child: AuthOptionsCard(
+                            onEmailTap: _showEmailSignInSheet,
+                            onGoogleTap: _handleGoogleSignIn,
+                            onGuestTap: _handleGuestAccess,
+                            isLoading: isLoading,
+                          ),
+                        ),
+                      );
+                    },
                   ),
-                  textAlign: TextAlign.center,
-                ),
-                const SizedBox(height: 8),
-                Text(
-                  'توكل',
-                  style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                    fontWeight: FontWeight.w700,
-                  ),
-                  textAlign: TextAlign.center,
-                ),
-                const SizedBox(height: 16),
-                Text(
-                  'Belajar Al-Quran dengan tenang, bertahap, dan bermakna.',
-                  style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                    color: TawakkalColors.textSecondary,
-                  ),
-                  textAlign: TextAlign.center,
-                ),
-                const Spacer(),
-                ElevatedButton.icon(
-                  onPressed: isLoading
-                      ? null
-                      : () {
-                          ref
-                              .read(authControllerProvider.notifier)
-                              .continueAsGuest();
-                        },
-                  icon: const Icon(Icons.person_outline),
-                  label: const Text('Mulai sebagai Guest'),
-                ),
-                const SizedBox(height: 12),
-                OutlinedButton.icon(
-                  onPressed: isLoading
-                      ? null
-                      : () {
-                          ref
-                              .read(authControllerProvider.notifier)
-                              .signInWithGoogle();
-                        },
-                  icon: const Icon(Icons.login),
-                  label: const Text('Masuk dengan Google'),
-                ),
-                const SizedBox(height: 12),
-                TextButton(
-                  onPressed: isLoading
-                      ? null
-                      : () => _showEmailSignInDialog(context, ref),
-                  child: const Text('Masuk dengan Email'),
-                ),
-                if (state.hasError)
-                  Padding(
-                    padding: const EdgeInsets.only(top: 12),
-                    child: Text(
-                      '${state.error}',
-                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                        color: Theme.of(context).colorScheme.error,
-                      ),
-                      textAlign: TextAlign.center,
-                    ),
-                  ),
-              ],
+                  const Spacer(flex: 1),
+                  // Error message (if any)
+                  if (state.hasError) _buildErrorMessage(state.error.toString()),
+                  const SizedBox(height: 24),
+                ],
+              ),
             ),
           ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildPatternBackground() {
+    return Positioned.fill(
+      child: CustomPaint(
+        painter: IslamicPatternPainter(
+          opacity: 0.06,
+          color: TawakkalColors.primary,
         ),
       ),
     );
   }
 
-  Future<void> _showEmailSignInDialog(
-    BuildContext context,
-    WidgetRef ref,
-  ) async {
-    final emailController = TextEditingController();
-    final passwordController = TextEditingController();
-
-    await showDialog<void>(
-      context: context,
-      builder: (context) {
-        return AlertDialog(
-          title: const Text('Masuk dengan Email'),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              TextField(
-                controller: emailController,
-                decoration: const InputDecoration(labelText: 'Email'),
-              ),
-              const SizedBox(height: 12),
-              TextField(
-                controller: passwordController,
-                decoration: const InputDecoration(labelText: 'Password'),
-                obscureText: true,
-              ),
-            ],
+  Widget _buildErrorMessage(String error) {
+    return Container(
+      margin: const EdgeInsets.symmetric(horizontal: 16),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      decoration: BoxDecoration(
+        color: TawakkalColors.danger.withValues(alpha: 0.15),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: TawakkalColors.danger.withValues(alpha: 0.3),
+          width: 1,
+        ),
+      ),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(
+            Icons.error_outline_rounded,
+            color: TawakkalColors.danger,
+            size: 18,
           ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.of(context).pop(),
-              child: const Text('Batal'),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              _getReadableError(error),
+              style: const TextStyle(
+                fontSize: 13,
+                color: TawakkalColors.danger,
+              ),
+              textAlign: TextAlign.center,
             ),
-            ElevatedButton(
-              onPressed: () async {
-                await ref
-                    .read(authControllerProvider.notifier)
-                    .signInWithEmail(
-                      email: emailController.text.trim(),
-                      password: passwordController.text,
-                    );
-                if (context.mounted) {
-                  Navigator.of(context).pop();
-                }
-              },
-              child: const Text('Masuk'),
-            ),
-          ],
-        );
-      },
+          ),
+        ],
+      ),
     );
+  }
+
+  Future<void> _showEmailSignInSheet() async {
+    await EmailSigninSheet.show(context);
+  }
+
+  Future<void> _handleGoogleSignIn() async {
+    await ref.read(authControllerProvider.notifier).signInWithGoogle();
+  }
+
+  Future<void> _handleGuestAccess() async {
+    await ref.read(authControllerProvider.notifier).continueAsGuest();
+  }
+
+  String _getReadableError(String error) {
+    if (error.contains('Invalid') || error.contains('credentials')) {
+      return 'Authentication failed. Please try again.';
+    }
+    if (error.contains('network') || error.contains('connection')) {
+      return 'Network error. Please check your connection.';
+    }
+    if (error.contains('cancelled') || error.contains('aborted')) {
+      return 'Sign in was cancelled.';
+    }
+    return 'An error occurred. Please try again.';
   }
 }

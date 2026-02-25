@@ -46,6 +46,7 @@ dependencies:
   just_audio: ^0.10.5
   audio_service: ^0.18.18
   google_fonts: ^6.3.2
+  flutter_svg: ^2.2.2
   uuid: ^4.5.1
   crypto: ^3.0.6
   collection: ^1.19.1
@@ -78,6 +79,8 @@ flutter:
 
   assets:
     - assets/branding/
+    - assets/images/
+    - assets/icons/
 
   # To add assets to your application, add an assets section, like this:
   # assets:
