@@ -9,10 +9,7 @@ import '../../../../app/theme/colors.dart';
 /// Stage 3: Text reveals letter-by-letter
 /// Stage 4: Arabic subtitle fades in
 class AnimatedLogo extends StatefulWidget {
-  const AnimatedLogo({
-    super.key,
-    this.onAnimationComplete,
-  });
+  const AnimatedLogo({super.key, this.onAnimationComplete});
 
   final VoidCallback? onAnimationComplete;
 
@@ -155,9 +152,7 @@ class _StarPatternAnimation extends StatelessWidget {
     return SizedBox(
       width: 160,
       height: 160,
-      child: CustomPaint(
-        painter: _AnimatedStarPainter(progress: progress),
-      ),
+      child: CustomPaint(painter: _AnimatedStarPainter(progress: progress)),
     );
   }
 }
@@ -249,10 +244,13 @@ class _MosqueIcon extends StatelessWidget {
           ),
         ],
       ),
-      child: const Icon(
-        Icons.mosque_rounded,
-        size: 76,
-        color: TawakkalColors.accentGold,
+      child: Padding(
+        padding: const EdgeInsets.all(18),
+        child: Image.asset(
+          'assets/images/tawakkal_transparent.png',
+          fit: BoxFit.contain,
+          filterQuality: FilterQuality.high,
+        ),
       ),
     );
   }
@@ -299,9 +297,18 @@ class _InspirationalQuote extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final quotes = [
-      {'arabic': 'تَوَكَّلْتُ عَلَى اللَّهِ', 'translation': 'I trust in Allah'},
-      {'arabic': 'رَبِّ زِدْنِي عِلْمًا', 'translation': 'My Lord, increase me in knowledge'},
-      {'arabic': 'وَمَن يَتَوَكَّلْ عَلَى اللَّهِ', 'translation': 'And whoever trusts in Allah'},
+      {
+        'arabic': 'تَوَكَّلْتُ عَلَى اللَّهِ',
+        'translation': 'I trust in Allah',
+      },
+      {
+        'arabic': 'رَبِّ زِدْنِي عِلْمًا',
+        'translation': 'My Lord, increase me in knowledge',
+      },
+      {
+        'arabic': 'وَمَن يَتَوَكَّلْ عَلَى اللَّهِ',
+        'translation': 'And whoever trusts in Allah',
+      },
     ];
 
     // Use a simple modulo based on time for variety

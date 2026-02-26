@@ -73,18 +73,11 @@ class _LaunchExperiencePageState extends State<LaunchExperiencePage> {
           gradient: LinearGradient(
             begin: Alignment.topCenter,
             end: Alignment.bottomCenter,
-            colors: [
-              Color(0xFF0B1A16),
-              Color(0xFF111F1C),
-              Color(0xFF08120F),
-            ],
+            colors: [Colors.black, Colors.black, Colors.black],
           ),
         ),
         child: CustomPaint(
-          painter: IslamicPatternPainter(
-            opacity: 0.06,
-            color: TawakkalColors.primary,
-          ),
+          painter: IslamicPatternPainter(opacity: 0.06, color: Colors.black),
           child: SafeArea(
             child: AnimatedSwitcher(
               duration: const Duration(milliseconds: 400),
@@ -329,10 +322,13 @@ class _BrandMark extends StatelessWidget {
               width: 1.5,
             ),
           ),
-          child: const Icon(
-            Icons.mosque_rounded,
-            color: TawakkalColors.primary,
-            size: 22,
+          child: Padding(
+            padding: const EdgeInsets.all(7),
+            child: Image.asset(
+              'assets/images/tawakkal_transparent.png',
+              fit: BoxFit.contain,
+              filterQuality: FilterQuality.high,
+            ),
           ),
         ),
         const SizedBox(width: 12),
