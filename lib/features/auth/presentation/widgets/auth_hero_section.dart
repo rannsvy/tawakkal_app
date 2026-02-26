@@ -19,7 +19,6 @@ class _AuthHeroSectionState extends State<AuthHeroSection>
   late AnimationController _controller;
   late Animation<double> _logoAnimation;
   late Animation<double> _welcomeAnimation;
-  late Animation<double> _taglineAnimation;
 
   @override
   void initState() {
@@ -42,14 +41,6 @@ class _AuthHeroSectionState extends State<AuthHeroSection>
       CurvedAnimation(
         parent: _controller,
         curve: const Interval(0.17, 0.72, curve: Curves.easeOutCubic),
-      ),
-    );
-
-    // Tagline: 300-900ms
-    _taglineAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
-      CurvedAnimation(
-        parent: _controller,
-        curve: const Interval(0.33, 1.0, curve: Curves.easeOutCubic),
       ),
     );
 
@@ -78,31 +69,6 @@ class _AuthHeroSectionState extends State<AuthHeroSection>
               child: Transform.translate(
                 offset: Offset(0, 20 * (1 - _welcomeAnimation.value)),
                 child: const _WelcomeTitle(),
-              ),
-            ),
-            const SizedBox(height: 8),
-            Opacity(
-              opacity: _welcomeAnimation.value,
-              child: Transform.translate(
-                offset: Offset(0, 20 * (1 - _welcomeAnimation.value)),
-                child: const _ArabicWelcome(),
-              ),
-            ),
-            const SizedBox(height: 16),
-            // Tagline
-            Opacity(
-              opacity: _taglineAnimation.value,
-              child: Transform.translate(
-                offset: Offset(0, 20 * (1 - _taglineAnimation.value)),
-                child: const _TaglineText(),
-              ),
-            ),
-            const SizedBox(height: 8),
-            Opacity(
-              opacity: _taglineAnimation.value,
-              child: Transform.translate(
-                offset: Offset(0, 20 * (1 - _taglineAnimation.value)),
-                child: const _ArabicTagline(),
               ),
             ),
           ],
@@ -185,60 +151,6 @@ class _WelcomeTitle extends StatelessWidget {
         fontWeight: FontWeight.w700,
         color: const Color(0xFFF7D98A),
         height: 1.2,
-      ),
-      textAlign: TextAlign.center,
-    );
-  }
-}
-
-class _ArabicWelcome extends StatelessWidget {
-  const _ArabicWelcome();
-
-  @override
-  Widget build(BuildContext context) {
-    return Text(
-      'مرحبا بكم في توكل',
-      style: GoogleFonts.notoNaskhArabic(
-        fontSize: 24,
-        fontWeight: FontWeight.w600,
-        color: const Color(0xFFE7CCA4),
-        height: 1.3,
-      ),
-      textAlign: TextAlign.center,
-    );
-  }
-}
-
-class _TaglineText extends StatelessWidget {
-  const _TaglineText();
-
-  @override
-  Widget build(BuildContext context) {
-    return Text(
-      'Begin your journey of learning\nwith the Holy Quran',
-      style: GoogleFonts.inter(
-        fontSize: 15,
-        fontWeight: FontWeight.w400,
-        color: TawakkalColors.textSecondary,
-        height: 1.5,
-      ),
-      textAlign: TextAlign.center,
-    );
-  }
-}
-
-class _ArabicTagline extends StatelessWidget {
-  const _ArabicTagline();
-
-  @override
-  Widget build(BuildContext context) {
-    return Text(
-      'ابدأ رحلتك مع القرآن الكريم',
-      style: GoogleFonts.notoNaskhArabic(
-        fontSize: 18,
-        fontWeight: FontWeight.w500,
-        color: TawakkalColors.textSecondary,
-        height: 1.4,
       ),
       textAlign: TextAlign.center,
     );

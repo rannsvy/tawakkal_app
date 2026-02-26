@@ -1,4 +1,3 @@
-import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../../../../app/theme/colors.dart';
@@ -21,11 +20,9 @@ class _AnimatedLogoState extends State<AnimatedLogo>
     with SingleTickerProviderStateMixin {
   late AnimationController _controller;
 
-  late Animation<double> _starPathAnimation;
   late Animation<double> _mosqueScaleAnimation;
   late Animation<double> _mosqueOpacityAnimation;
   late Animation<double> _textOpacityAnimation;
-  late Animation<double> _arabicOpacityAnimation;
   late Animation<double> _quoteOpacityAnimation;
 
   @override
@@ -34,14 +31,6 @@ class _AnimatedLogoState extends State<AnimatedLogo>
     _controller = AnimationController(
       duration: const Duration(milliseconds: 2300),
       vsync: this,
-    );
-
-    // Star path draws: 0-600ms
-    _starPathAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
-      CurvedAnimation(
-        parent: _controller,
-        curve: const Interval(0.0, 0.26, curve: Curves.easeOutCubic),
-      ),
     );
 
     // Mosque fades in: 500-1000ms
@@ -63,14 +52,6 @@ class _AnimatedLogoState extends State<AnimatedLogo>
       CurvedAnimation(
         parent: _controller,
         curve: const Interval(0.39, 0.61, curve: Curves.easeOut),
-      ),
-    );
-
-    // Arabic subtitle: 1300-1700ms
-    _arabicOpacityAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
-      CurvedAnimation(
-        parent: _controller,
-        curve: const Interval(0.57, 0.74, curve: Curves.easeOut),
       ),
     );
 
@@ -106,8 +87,6 @@ class _AnimatedLogoState extends State<AnimatedLogo>
         return Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            // Star pattern background
-            _StarPatternAnimation(progress: _starPathAnimation.value),
             const SizedBox(height: 24),
             // Mosque icon with glow
             Transform.scale(
@@ -123,12 +102,7 @@ class _AnimatedLogoState extends State<AnimatedLogo>
               opacity: _textOpacityAnimation.value,
               child: const _BrandName(),
             ),
-            const SizedBox(height: 6),
-            // Arabic brand name
-            Opacity(
-              opacity: _arabicOpacityAnimation.value,
-              child: const _ArabicName(),
-            ),
+
             const SizedBox(height: 32),
             // Inspirational quote
             Opacity(
@@ -139,83 +113,6 @@ class _AnimatedLogoState extends State<AnimatedLogo>
         );
       },
     );
-  }
-}
-
-class _StarPatternAnimation extends StatelessWidget {
-  const _StarPatternAnimation({required this.progress});
-
-  final double progress;
-
-  @override
-  Widget build(BuildContext context) {
-    return SizedBox(
-      width: 160,
-      height: 160,
-      child: CustomPaint(painter: _AnimatedStarPainter(progress: progress)),
-    );
-  }
-}
-
-class _AnimatedStarPainter extends CustomPainter {
-  const _AnimatedStarPainter({required this.progress});
-
-  final double progress;
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    final center = Offset(size.width / 2, size.height / 2);
-
-    // Draw outer ring
-    final ringPaint = Paint()
-      ..color = TawakkalColors.primary.withValues(alpha: 0.2 * progress)
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 1.5;
-    canvas.drawCircle(center, 70 * progress, ringPaint);
-
-    // Draw 8-point star
-    final starPaint = Paint()
-      ..color = TawakkalColors.accentGold.withValues(alpha: 0.3 * progress)
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 2;
-
-    final path = Path();
-    const points = 8;
-    final outerRadius = 55.0 * progress;
-    final innerRadius = 22.0 * progress;
-
-    final segments = (points * 2 * progress).ceil();
-    for (int i = 0; i < segments; i++) {
-      final radius = i % 2 == 0 ? outerRadius : innerRadius;
-      final angle = (i * math.pi) / points - math.pi / 2;
-      final x = center.dx + radius * math.cos(angle);
-      final y = center.dy + radius * math.sin(angle);
-
-      if (i == 0) {
-        path.moveTo(x, y);
-      } else {
-        path.lineTo(x, y);
-      }
-    }
-    if (segments >= points * 2) {
-      path.close();
-    }
-    canvas.drawPath(path, starPaint);
-
-    // Draw inner glow
-    if (progress > 0.5) {
-      final glowPaint = Paint()
-        ..color = TawakkalColors.accentGold.withValues(
-          alpha: 0.15 * (progress - 0.5) * 2,
-        )
-        ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 16);
-      canvas.drawCircle(center, 40, glowPaint);
-    }
-  }
-
-  @override
-  bool shouldRepaint(covariant _AnimatedStarPainter oldDelegate) {
-    return oldDelegate.progress != progress;
   }
 }
 
@@ -274,51 +171,15 @@ class _BrandName extends StatelessWidget {
   }
 }
 
-class _ArabicName extends StatelessWidget {
-  const _ArabicName();
-
-  @override
-  Widget build(BuildContext context) {
-    return Text(
-      'توكل',
-      style: GoogleFonts.notoNaskhArabic(
-        fontSize: 36,
-        fontWeight: FontWeight.w600,
-        color: const Color(0xFFE7CCA4),
-        height: 1.2,
-      ),
-    );
-  }
-}
-
 class _InspirationalQuote extends StatelessWidget {
   const _InspirationalQuote();
 
   @override
   Widget build(BuildContext context) {
-    final quotes = [
-      {
-        'arabic': 'تَوَكَّلْتُ عَلَى اللَّهِ',
-        'translation': 'I trust in Allah',
-      },
-      {
-        'arabic': 'رَبِّ زِدْنِي عِلْمًا',
-        'translation': 'My Lord, increase me in knowledge',
-      },
-      {
-        'arabic': 'وَمَن يَتَوَكَّلْ عَلَى اللَّهِ',
-        'translation': 'And whoever trusts in Allah',
-      },
-    ];
-
-    // Use a simple modulo based on time for variety
-    final index = DateTime.now().millisecond % quotes.length;
-    final quote = quotes[index];
-
     return Column(
       children: [
         Text(
-          quote['arabic']!,
+          'رَبِّ زِدْنِي عِلْمًا',
           style: GoogleFonts.notoNaskhArabic(
             fontSize: 20,
             fontWeight: FontWeight.w500,
@@ -328,7 +189,7 @@ class _InspirationalQuote extends StatelessWidget {
         ),
         const SizedBox(height: 4),
         Text(
-          quote['translation']!,
+          'My Lord, increase me in knowledge',
           style: GoogleFonts.inter(
             fontSize: 13,
             fontWeight: FontWeight.w400,
