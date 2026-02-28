@@ -49,3 +49,6 @@ app.*.map.json
 
 # Documentation (local learning material)
 /docs/
+
+# Request history
+/request/
