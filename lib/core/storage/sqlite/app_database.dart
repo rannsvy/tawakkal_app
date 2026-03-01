@@ -30,13 +30,16 @@ class AppDatabase {
     final dbPath = p.join(directory.path, _dbName);
     return openDatabase(
       dbPath,
-      version: 2,
+      version: 3,
       onCreate: (db, version) async {
         await _createTables(db);
       },
       onUpgrade: (db, oldVersion, newVersion) async {
         if (oldVersion < 2) {
           await _createQuizQuestionHistoryTables(db);
+        }
+        if (oldVersion < 3) {
+          await _createWorshipFeatureTables(db);
         }
       },
     );
@@ -169,6 +172,7 @@ class AppDatabase {
     ''');
 
     await _createQuizQuestionHistoryTables(db);
+    await _createWorshipFeatureTables(db);
   }
 
   Future<void> _createQuizQuestionHistoryTables(DatabaseExecutor db) async {
@@ -191,6 +195,76 @@ class AppDatabase {
     await db.execute('''
       CREATE INDEX IF NOT EXISTS idx_quiz_question_history_scope
       ON quiz_question_history(user_local_id, surah_id, difficulty, language, created_at DESC)
+    ''');
+  }
+
+  Future<void> _createWorshipFeatureTables(DatabaseExecutor db) async {
+    await db.execute('''
+      CREATE TABLE IF NOT EXISTS daily_verse_cache (
+        date_key TEXT PRIMARY KEY,
+        surah_id INTEGER NOT NULL,
+        ayah_number INTEGER NOT NULL,
+        text_ar TEXT NOT NULL,
+        text_latin TEXT NOT NULL,
+        text_id TEXT NOT NULL,
+        source TEXT NOT NULL,
+        created_at TEXT NOT NULL
+      )
+    ''');
+
+    await db.execute('''
+      CREATE TABLE IF NOT EXISTS worship_location (
+        id INTEGER PRIMARY KEY CHECK (id = 1),
+        mode TEXT NOT NULL,
+        latitude REAL NOT NULL,
+        longitude REAL NOT NULL,
+        provinsi TEXT,
+        kabkota TEXT,
+        label TEXT,
+        updated_at TEXT NOT NULL
+      )
+    ''');
+
+    await db.execute('''
+      CREATE TABLE IF NOT EXISTS prayer_schedule_cache (
+        location_key TEXT NOT NULL,
+        date_key TEXT NOT NULL,
+        imsak TEXT NOT NULL,
+        subuh TEXT NOT NULL,
+        terbit TEXT NOT NULL,
+        dhuha TEXT NOT NULL,
+        dzuhur TEXT NOT NULL,
+        ashar TEXT NOT NULL,
+        maghrib TEXT NOT NULL,
+        isya TEXT NOT NULL,
+        source TEXT NOT NULL,
+        fetched_at TEXT NOT NULL,
+        PRIMARY KEY (location_key, date_key)
+      )
+    ''');
+    await db.execute('''
+      CREATE INDEX IF NOT EXISTS idx_prayer_schedule_cache_date
+      ON prayer_schedule_cache(date_key)
+    ''');
+
+    await db.execute('''
+      CREATE TABLE IF NOT EXISTS tasbih_state (
+        id INTEGER PRIMARY KEY CHECK (id = 1),
+        count INTEGER NOT NULL DEFAULT 0,
+        target INTEGER NOT NULL DEFAULT 33,
+        today_cycles INTEGER NOT NULL DEFAULT 0,
+        updated_at TEXT NOT NULL
+      )
+    ''');
+
+    await db.execute('''
+      CREATE TABLE IF NOT EXISTS tasbih_history (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        date_key TEXT NOT NULL,
+        target INTEGER NOT NULL,
+        final_count INTEGER NOT NULL,
+        completed_at TEXT NOT NULL
+      )
     ''');
   }
 
@@ -462,6 +536,193 @@ class AppDatabase {
       return null;
     }
     return rows.first;
+  }
+
+  Future<Map<String, Object?>?> getDailyVerse({required String dateKey}) async {
+    final db = await database;
+    final rows = await db.query(
+      'daily_verse_cache',
+      where: 'date_key = ?',
+      whereArgs: [dateKey],
+      limit: 1,
+    );
+    if (rows.isEmpty) {
+      return null;
+    }
+    return rows.first;
+  }
+
+  Future<void> upsertDailyVerse({
+    required String dateKey,
+    required int surahId,
+    required int ayahNumber,
+    required String textAr,
+    required String textLatin,
+    required String textId,
+    required String source,
+  }) async {
+    final db = await database;
+    await db.insert('daily_verse_cache', <String, Object?>{
+      'date_key': dateKey,
+      'surah_id': surahId,
+      'ayah_number': ayahNumber,
+      'text_ar': textAr,
+      'text_latin': textLatin,
+      'text_id': textId,
+      'source': source,
+      'created_at': DateTime.now().toIso8601String(),
+    }, conflictAlgorithm: ConflictAlgorithm.replace);
+  }
+
+  Future<Map<String, Object?>?> getWorshipLocation() async {
+    final db = await database;
+    final rows = await db.query('worship_location', where: 'id = 1', limit: 1);
+    if (rows.isEmpty) {
+      return null;
+    }
+    return rows.first;
+  }
+
+  Future<void> upsertWorshipLocation({
+    required String mode,
+    required double latitude,
+    required double longitude,
+    String? provinsi,
+    String? kabkota,
+    String? label,
+  }) async {
+    final db = await database;
+    await db.insert('worship_location', <String, Object?>{
+      'id': 1,
+      'mode': mode,
+      'latitude': latitude,
+      'longitude': longitude,
+      'provinsi': provinsi,
+      'kabkota': kabkota,
+      'label': label,
+      'updated_at': DateTime.now().toIso8601String(),
+    }, conflictAlgorithm: ConflictAlgorithm.replace);
+  }
+
+  Future<Map<String, Object?>?> getPrayerScheduleByDate({
+    required String locationKey,
+    required String dateKey,
+  }) async {
+    final db = await database;
+    final rows = await db.query(
+      'prayer_schedule_cache',
+      where: 'location_key = ? AND date_key = ?',
+      whereArgs: [locationKey, dateKey],
+      limit: 1,
+    );
+    if (rows.isEmpty) {
+      return null;
+    }
+    return rows.first;
+  }
+
+  Future<List<Map<String, Object?>>> getPrayerScheduleByMonth({
+    required String locationKey,
+    required int year,
+    required int month,
+  }) async {
+    final db = await database;
+    final prefix =
+        '${year.toString().padLeft(4, '0')}-${month.toString().padLeft(2, '0')}';
+    return db.query(
+      'prayer_schedule_cache',
+      where: 'location_key = ? AND date_key LIKE ?',
+      whereArgs: [locationKey, '$prefix-%'],
+      orderBy: 'date_key ASC',
+    );
+  }
+
+  Future<void> upsertPrayerScheduleBatch({
+    required String locationKey,
+    required List<Map<String, String>> rows,
+    required String source,
+  }) async {
+    if (rows.isEmpty) {
+      return;
+    }
+    final db = await database;
+    final fetchedAt = DateTime.now().toIso8601String();
+    await db.transaction((txn) async {
+      for (final row in rows) {
+        await txn.insert('prayer_schedule_cache', <String, Object?>{
+          'location_key': locationKey,
+          'date_key': row['date_key'] ?? '',
+          'imsak': row['imsak'] ?? '',
+          'subuh': row['subuh'] ?? '',
+          'terbit': row['terbit'] ?? '',
+          'dhuha': row['dhuha'] ?? '',
+          'dzuhur': row['dzuhur'] ?? '',
+          'ashar': row['ashar'] ?? '',
+          'maghrib': row['maghrib'] ?? '',
+          'isya': row['isya'] ?? '',
+          'source': source,
+          'fetched_at': fetchedAt,
+        }, conflictAlgorithm: ConflictAlgorithm.replace);
+      }
+    });
+  }
+
+  Future<Map<String, Object?>> getOrCreateTasbihState() async {
+    final db = await database;
+    final rows = await db.query('tasbih_state', where: 'id = 1', limit: 1);
+    if (rows.isNotEmpty) {
+      return rows.first;
+    }
+    final initial = <String, Object?>{
+      'id': 1,
+      'count': 0,
+      'target': 33,
+      'today_cycles': 0,
+      'updated_at': DateTime.now().toIso8601String(),
+    };
+    await db.insert('tasbih_state', initial);
+    return initial;
+  }
+
+  Future<void> upsertTasbihState({
+    required int count,
+    required int target,
+    required int todayCycles,
+  }) async {
+    final db = await database;
+    await db.insert('tasbih_state', <String, Object?>{
+      'id': 1,
+      'count': count,
+      'target': target,
+      'today_cycles': todayCycles,
+      'updated_at': DateTime.now().toIso8601String(),
+    }, conflictAlgorithm: ConflictAlgorithm.replace);
+  }
+
+  Future<void> insertTasbihHistory({
+    required String dateKey,
+    required int target,
+    required int finalCount,
+  }) async {
+    final db = await database;
+    await db.insert('tasbih_history', <String, Object?>{
+      'date_key': dateKey,
+      'target': target,
+      'final_count': finalCount,
+      'completed_at': DateTime.now().toIso8601String(),
+    });
+  }
+
+  Future<List<Map<String, Object?>>> getTasbihHistoryByDate({
+    required String dateKey,
+  }) async {
+    final db = await database;
+    return db.query(
+      'tasbih_history',
+      where: 'date_key = ?',
+      whereArgs: [dateKey],
+      orderBy: 'completed_at DESC, id DESC',
+    );
   }
 
   Future<void> putQuizQuestionHistoryBatch({

@@ -147,34 +147,25 @@ class DashboardPage extends ConsumerWidget {
                             icon: Icons.menu_book_rounded,
                             title: 'Daily Verse',
                             accent: const Color(0xFF7FB3FF),
-                            onTap: () => onSelectTab(1),
+                            onTap: () => context.push('/daily-verse'),
                           ),
                           _QuickActionTile(
                             icon: Icons.explore_rounded,
                             title: 'Qibla Finder',
                             accent: TawakkalColors.primary,
-                            onTap: () => _showComingSoon(
-                              context,
-                              featureLabel: 'Qibla Finder',
-                            ),
+                            onTap: () => context.push('/qibla'),
                           ),
                           _QuickActionTile(
                             icon: Icons.mosque_rounded,
                             title: 'Prayer Times',
                             accent: const Color(0xFFB79CFF),
-                            onTap: () => _showComingSoon(
-                              context,
-                              featureLabel: 'Prayer Times',
-                            ),
+                            onTap: () => context.push('/prayer-times'),
                           ),
                           _QuickActionTile(
                             icon: Icons.volunteer_activism_rounded,
                             title: 'Tasbih',
                             accent: const Color(0xFFFFB175),
-                            onTap: () => _showComingSoon(
-                              context,
-                              featureLabel: 'Tasbih',
-                            ),
+                            onTap: () => context.push('/tasbih'),
                           ),
                         ],
                       ),

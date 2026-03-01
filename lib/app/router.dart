@@ -4,10 +4,14 @@ import 'package:go_router/go_router.dart';
 import '../features/auth/presentation/pages/auth_gate_page.dart';
 import '../features/home/presentation/pages/home_page.dart';
 import '../features/onboarding/presentation/pages/launch_experience_page.dart';
+import '../features/prayer_times/presentation/pages/prayer_times_page.dart';
 import '../features/quran/presentation/pages/surah_detail_page.dart';
+import '../features/qibla/presentation/pages/qibla_page.dart';
 import '../features/quiz/presentation/pages/quiz_page.dart';
 import '../features/quiz/presentation/pages/quiz_result_page.dart';
 import '../features/quiz/domain/entities/quiz_result_models.dart';
+import '../features/daily_verse/presentation/pages/daily_verse_page.dart';
+import '../features/tasbih/presentation/pages/tasbih_page.dart';
 
 final goRouterProvider = Provider<GoRouter>((ref) {
   return GoRouter(
@@ -59,6 +63,26 @@ final goRouterProvider = Provider<GoRouter>((ref) {
           final args = state.extra! as QuizResultArgs;
           return QuizResultPage(args: args);
         },
+      ),
+      GoRoute(
+        path: '/daily-verse',
+        name: DailyVersePage.routeName,
+        builder: (context, state) => const DailyVersePage(),
+      ),
+      GoRoute(
+        path: '/prayer-times',
+        name: PrayerTimesPage.routeName,
+        builder: (context, state) => const PrayerTimesPage(),
+      ),
+      GoRoute(
+        path: '/qibla',
+        name: QiblaPage.routeName,
+        builder: (context, state) => const QiblaPage(),
+      ),
+      GoRoute(
+        path: '/tasbih',
+        name: TasbihPage.routeName,
+        builder: (context, state) => const TasbihPage(),
       ),
     ],
   );
