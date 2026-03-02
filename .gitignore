@@ -52,3 +52,6 @@ app.*.map.json
 
 # Request history
 /request/
+
+#agents.md
+AGENTS.md

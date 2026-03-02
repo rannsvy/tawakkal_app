@@ -3,7 +3,13 @@ import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 
-import '../../app/theme/colors.dart';
+// HTML Colors
+const Color _primaryPurple = Color(0xFFA855F7);
+const Color _gold = Color(0xFFD97706);
+const Color _cream = Color(0xFFFEF3C7);
+const Color _bgLight = Color(0xFFFAFAFA);
+const Color _bgDark = Color(0xFF000000);
+const Color _surfaceDark = Color(0xFF121212);
 
 class UniversalLoadingView extends StatefulWidget {
   const UniversalLoadingView({
@@ -13,6 +19,7 @@ class UniversalLoadingView extends StatefulWidget {
     this.primaryIcon = Icons.bedtime_rounded,
     this.showPercentage = true,
     this.padding = const EdgeInsets.all(24),
+    this.randomSeed,
   });
 
   final String message;
@@ -20,404 +27,606 @@ class UniversalLoadingView extends StatefulWidget {
   final IconData primaryIcon;
   final bool showPercentage;
   final EdgeInsetsGeometry padding;
+  final int? randomSeed;
 
   @override
   State<UniversalLoadingView> createState() => _UniversalLoadingViewState();
 }
 
 class _UniversalLoadingViewState extends State<UniversalLoadingView>
-    with SingleTickerProviderStateMixin {
-  static const Duration _simulationTick = Duration(milliseconds: 100);
+    with TickerProviderStateMixin {
+  late final AnimationController _rotationController;
+  late final AnimationController _pulseController;
+  late final AnimationController _fadeController;
 
-  late final AnimationController _controller;
-  Timer? _simulationTicker;
-  Duration _simulationElapsed = Duration.zero;
-  double _simulatedProgress = 0;
+  Timer? _messageTimer;
+  int _messageIndex = 0;
+  late math.Random _random;
+  late List<String> _taskMessages;
+  late String _dailyTip;
 
   @override
   void initState() {
     super.initState();
-    _controller = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 2400),
-    )..repeat();
-    _syncSimulationLifecycle(initialMount: true);
-  }
 
-  @override
-  void dispose() {
-    _simulationTicker?.cancel();
-    _controller.dispose();
-    super.dispose();
+    // Rotation takes 3 seconds
+    _rotationController = AnimationController(
+      vsync: this,
+      duration: const Duration(seconds: 3),
+    )..repeat();
+
+    // Pulse animation takes 1.5 seconds
+    _pulseController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 1500),
+    )..repeat();
+
+    // Message fade transition
+    _fadeController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 300),
+      value: 1.0, // Fully visible initially
+    );
+
+    _random = widget.randomSeed == null
+        ? math.Random()
+        : math.Random(widget.randomSeed);
+    _refreshTaskContent(resetMessageIndex: true);
+    _startMessageTimer();
   }
 
   @override
   void didUpdateWidget(covariant UniversalLoadingView oldWidget) {
     super.didUpdateWidget(oldWidget);
-    if (oldWidget.progress == widget.progress) {
+    final seedChanged = oldWidget.randomSeed != widget.randomSeed;
+    final messageChanged = oldWidget.message != widget.message;
+    if (!seedChanged && !messageChanged) {
       return;
     }
-    _syncSimulationLifecycle(initialMount: false);
+
+    if (seedChanged) {
+      _random = widget.randomSeed == null
+          ? math.Random()
+          : math.Random(widget.randomSeed);
+    }
+
+    _refreshTaskContent(resetMessageIndex: true);
+    _startMessageTimer();
   }
 
-  void _syncSimulationLifecycle({required bool initialMount}) {
-    if (widget.progress != null) {
-      _simulationTicker?.cancel();
-      _simulationTicker = null;
+  @override
+  void dispose() {
+    _messageTimer?.cancel();
+    _rotationController.dispose();
+    _pulseController.dispose();
+    _fadeController.dispose();
+    super.dispose();
+  }
+
+  void _startMessageTimer() {
+    _messageTimer?.cancel();
+    if (_taskMessages.length <= 1) {
       return;
     }
 
-    if (initialMount || _simulationTicker == null) {
-      _simulationElapsed = Duration.zero;
-      if (!initialMount) {
+    _messageTimer = Timer.periodic(const Duration(milliseconds: 2500), (_) {
+      _fadeController.reverse().then((_) {
+        if (!mounted) {
+          return;
+        }
         setState(() {
-          _simulatedProgress = 0;
+          _messageIndex = (_messageIndex + 1) % _taskMessages.length;
         });
-      }
-    }
-
-    if (_simulationTicker != null) {
-      return;
-    }
-
-    _simulationTicker = Timer.periodic(_simulationTick, (_) {
-      if (!mounted || widget.progress != null) {
-        return;
-      }
-      _simulationElapsed += _simulationTick;
-      final nextProgress = _computeSimulatedProgress(_simulationElapsed);
-      if (nextProgress <= _simulatedProgress + 0.0005) {
-        return;
-      }
-      setState(() {
-        _simulatedProgress = nextProgress;
+        _fadeController.forward();
       });
     });
   }
 
-  double _computeSimulatedProgress(Duration elapsed) {
-    final elapsedSeconds = elapsed.inMilliseconds / 1000;
-    if (elapsedSeconds <= 6) {
-      final normalized = (elapsedSeconds / 6).clamp(0, 1).toDouble();
-      return Curves.easeOutCubic.transform(normalized) * 0.9;
+  void _refreshTaskContent({required bool resetMessageIndex}) {
+    final taskContent = _resolveTaskContent(widget.message);
+    _taskMessages = _dedupeMessages(taskContent.messages);
+    if (_taskMessages.isEmpty) {
+      _taskMessages = <String>[widget.message];
     }
-
-    final tailSeconds = elapsedSeconds - 6;
-    final tailProgress = 0.08 * (1 - math.exp(-tailSeconds / 8));
-    return (0.9 + tailProgress).clamp(0, 0.98).toDouble();
+    if (resetMessageIndex) {
+      _messageIndex = 0;
+    }
+    _dailyTip = taskContent.tips[_random.nextInt(taskContent.tips.length)];
   }
 
-  double _effectiveProgress() {
-    final explicit = widget.progress;
-    if (explicit != null) {
-      return explicit.clamp(0, 1).toDouble();
+  List<String> _dedupeMessages(List<String> messages) {
+    final seen = <String>{};
+    final deduped = <String>[];
+    for (final message in messages) {
+      final trimmed = message.trim();
+      if (trimmed.isEmpty || !seen.add(trimmed)) {
+        continue;
+      }
+      deduped.add(trimmed);
     }
-    return _simulatedProgress.clamp(0, 0.98).toDouble();
+    return deduped;
+  }
+
+  _TaskContent _resolveTaskContent(String taskMessage) {
+    final normalized = taskMessage.toLowerCase();
+    final isIndonesian =
+        normalized.contains('menyiapkan') ||
+        normalized.contains('hasil') ||
+        normalized.contains('ayat');
+
+    if (normalized.contains('quiz')) {
+      return _TaskContent(
+        messages: <String>[
+          taskMessage,
+          isIndonesian
+              ? 'Menyusun pertanyaan berdasarkan ayat terpilih...'
+              : 'Building quiz questions from selected ayat...',
+          isIndonesian
+              ? 'Menyiapkan feedback AI yang relevan...'
+              : 'Preparing relevant AI feedback...',
+          isIndonesian
+              ? 'Menata alur kuis agar tetap seimbang...'
+              : 'Balancing question flow for better pacing...',
+        ],
+        tips: <String>[
+          isIndonesian
+              ? 'Baca ayat sampai selesai sebelum memilih jawaban.'
+              : 'Read the full ayah context before choosing an answer.',
+          isIndonesian
+              ? 'Tandai kata kunci ayat untuk mempercepat analisis pilihan.'
+              : 'Use key terms from the ayah to narrow answer options.',
+          isIndonesian
+              ? 'Utamakan jawaban yang paling sesuai konteks ayat.'
+              : 'Prioritize answers that best match the ayah context.',
+        ],
+      );
+    }
+
+    if (normalized.contains('finaliz') || normalized.contains('hasil')) {
+      return _TaskContent(
+        messages: <String>[
+          taskMessage,
+          isIndonesian
+              ? 'Menghitung skor dan merangkum jawaban...'
+              : 'Calculating your score and summary...',
+          isIndonesian
+              ? 'Merapikan insight belajar berbasis AI...'
+              : 'Refining AI-powered study insights...',
+        ],
+        tips: <String>[
+          isIndonesian
+              ? 'Perhatikan pola salah untuk menentukan fokus belajar berikutnya.'
+              : 'Review repeated mistakes to choose your next focus area.',
+          isIndonesian
+              ? 'Fokus pada ayat yang belum konsisten sebelum lanjut ke level berikutnya.'
+              : 'Revisit ayat you missed before moving to harder levels.',
+          isIndonesian
+              ? 'Jaga ritme latihan singkat tapi konsisten setiap hari.'
+              : 'Short, consistent review sessions build stronger retention.',
+        ],
+      );
+    }
+
+    if (normalized.contains('audio') ||
+        normalized.contains('download') ||
+        normalized.contains('unduh')) {
+      return const _TaskContent(
+        messages: <String>[
+          'Preparing audio resources...',
+          'Optimizing recitation stream quality...',
+          'Finalizing offline playback support...',
+        ],
+        tips: <String>[
+          'Download your most-played surahs first for smoother offline listening.',
+          'Use one reciter consistently to improve memorization rhythm.',
+          'Replaying short ranges often helps lock pronunciation patterns.',
+        ],
+      );
+    }
+
+    return _TaskContent(
+      messages: <String>[
+        taskMessage,
+        isIndonesian
+            ? 'Menyinkronkan progres belajar di latar belakang...'
+            : 'Syncing your learning progress in the background...',
+        isIndonesian
+            ? 'Menyiapkan tampilan berikutnya...'
+            : 'Preparing the next screen...',
+      ],
+      tips: <String>[
+        isIndonesian
+            ? 'Konsistensi harian kecil lebih efektif daripada sesi panjang yang jarang.'
+            : 'Small daily consistency beats occasional long sessions.',
+        isIndonesian
+            ? 'Ulangi ayat yang sama beberapa kali untuk memperkuat pemahaman.'
+            : 'Repeat the same ayah a few times to strengthen recall.',
+        isIndonesian
+            ? 'Gunakan terjemahan sebagai penguat makna, bukan pengganti tadabbur.'
+            : 'Use translations to support meaning, not replace reflection.',
+      ],
+    );
   }
 
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final backgroundColor = isDark ? Colors.black : const Color(0xFF0A0F0E);
-    final effectiveProgress = _effectiveProgress();
+    final backgroundColor = isDark ? _bgDark : _bgLight;
 
-    return SizedBox.expand(
-      key: const Key('universal-loading-root'),
-      child: ColoredBox(
-        color: backgroundColor,
-        child: SafeArea(
-          child: Padding(
-            padding: widget.padding,
-            child: LayoutBuilder(
-              builder: (context, constraints) {
-                final shortestSide = math.min(
-                  constraints.maxWidth,
-                  constraints.maxHeight,
-                );
-                final iconClusterSize = (shortestSide * 0.62)
-                    .clamp(180, 250)
-                    .toDouble();
-                final verticalGapAfterIcon = (constraints.maxHeight * 0.035)
-                    .clamp(14, 26)
-                    .toDouble();
-                final verticalGapAfterBar = (constraints.maxHeight * 0.015)
-                    .clamp(8, 14)
-                    .toDouble();
-                final contentWidth = constraints.maxWidth >= 560
-                    ? 420.0
-                    : constraints.maxWidth;
-                final loadingBlockWidth = math.min(
-                  contentWidth,
-                  math.min(320.0, math.max(220.0, contentWidth * 0.82)),
-                );
-                final contentVerticalPadding = (constraints.maxHeight * 0.09)
-                    .clamp(18, 46)
-                    .toDouble();
+    return Scaffold(
+      backgroundColor: backgroundColor,
+      body: SizedBox.expand(
+        key: const Key('universal-loading-root'),
+        child: Stack(
+          children: [
+            // Background subtle pulses
+            const _BackgroundPulses(),
 
-                return Stack(
-                  fit: StackFit.expand,
-                  children: [
-                    SingleChildScrollView(
-                      physics: const ClampingScrollPhysics(
-                        parent: AlwaysScrollableScrollPhysics(),
-                      ),
-                      child: ConstrainedBox(
-                        constraints: BoxConstraints(
-                          minHeight: constraints.maxHeight,
+            // Main Content
+            SafeArea(
+              child: Center(
+                child: SingleChildScrollView(
+                  child: Padding(
+                    padding: widget.padding,
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        // Particle Loading Orb
+                        AnimatedBuilder(
+                          animation: Listenable.merge([
+                            _rotationController,
+                            _pulseController,
+                          ]),
+                          builder: (context, child) {
+                            return _LoadingOrbit(
+                              rotationValue: _rotationController.value,
+                              pulseValue: _pulseController.value,
+                            );
+                          },
                         ),
-                        child: Center(
-                          child: SizedBox(
-                            width: contentWidth,
-                            child: Padding(
-                              padding: EdgeInsets.symmetric(
-                                vertical: contentVerticalPadding,
+                        const SizedBox(height: 64),
+
+                        // Cycling Text
+                        AnimatedBuilder(
+                          animation: _fadeController,
+                          builder: (context, child) {
+                            return Opacity(
+                              opacity: _fadeController.value,
+                              child: Text(
+                                _taskMessages[_messageIndex],
+                                key: const Key('universal-loading-message'),
+                                style: TextStyle(
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.w300,
+                                  letterSpacing: 1,
+                                  color: isDark ? _cream : Colors.grey[600],
+                                ),
                               ),
-                              child: AnimatedBuilder(
-                                animation: _controller,
-                                builder: (context, _) {
-                                  final pulseScale =
-                                      1 +
-                                      (0.04 *
-                                          math.sin(
-                                            _controller.value * 2 * math.pi,
-                                          ));
-                                  return Column(
-                                    mainAxisAlignment: MainAxisAlignment.center,
-                                    children: [
-                                      _IconCluster(
-                                        icon: widget.primaryIcon,
-                                        pulseScale: pulseScale,
-                                        size: iconClusterSize,
-                                      ),
-                                      SizedBox(height: verticalGapAfterIcon),
-                                      Align(
-                                        alignment: Alignment.center,
-                                        child: SizedBox(
-                                          width: loadingBlockWidth,
-                                          child: _LoadingBarBlock(
-                                            progress: effectiveProgress,
-                                            showPercentage:
-                                                widget.showPercentage,
-                                            animationValue: _controller.value,
-                                          ),
-                                        ),
-                                      ),
-                                      SizedBox(height: verticalGapAfterBar),
-                                      Text(
-                                        widget.message,
-                                        key: const Key(
-                                          'universal-loading-message',
-                                        ),
-                                        textAlign: TextAlign.center,
-                                        style: Theme.of(context)
-                                            .textTheme
-                                            .bodyMedium
-                                            ?.copyWith(
-                                              color:
-                                                  TawakkalColors.textSecondary,
-                                              fontWeight: FontWeight.w500,
-                                              letterSpacing: 0.5,
-                                            ),
-                                      ),
-                                    ],
-                                  );
-                                },
-                              ),
+                            );
+                          },
+                        ),
+                        const SizedBox(height: 32),
+
+                        // Daily Tip Glassmorphism Card
+                        Container(
+                          margin: const EdgeInsets.symmetric(horizontal: 16),
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 24,
+                            vertical: 12,
+                          ),
+                          decoration: BoxDecoration(
+                            color: isDark
+                                ? _surfaceDark
+                                : Colors.white.withValues(alpha: 0.5),
+                            border: Border.all(
+                              color: isDark
+                                  ? Colors.grey[800]!
+                                  : Colors.grey[200]!,
                             ),
+                            borderRadius: BorderRadius.circular(16),
+                            boxShadow: [
+                              BoxShadow(
+                                color: Colors.black.withValues(alpha: 0.05),
+                                blurRadius: 10,
+                                spreadRadius: 0,
+                              ),
+                            ],
+                          ),
+                          child: Column(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Row(
+                                mainAxisSize: MainAxisSize.min,
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  const Icon(
+                                    Icons.lightbulb_rounded,
+                                    color: _gold,
+                                    size: 16,
+                                  ),
+                                  const SizedBox(width: 8),
+                                  Text(
+                                    'DAILY TIP',
+                                    style: TextStyle(
+                                      fontSize: 10,
+                                      fontWeight: FontWeight.bold,
+                                      letterSpacing: 1.5,
+                                      color: isDark
+                                          ? Colors.grey[500]
+                                          : Colors.grey[400],
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              const SizedBox(height: 8),
+                              Text(
+                                _dailyTip,
+                                key: const Key('universal-loading-daily-tip'),
+                                textAlign: TextAlign.center,
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  fontStyle: FontStyle.italic,
+                                  color: isDark
+                                      ? Colors.grey[300]
+                                      : Colors.grey[600],
+                                ),
+                              ),
+                            ],
                           ),
                         ),
-                      ),
+                      ],
                     ),
-                  ],
-                );
-              },
+                  ),
+                ),
+              ),
             ),
-          ),
+
+            // Version and Status
+            Positioned(
+              bottom: 32,
+              left: 0,
+              right: 0,
+              child: Opacity(
+                opacity: 0.5,
+                child: Text(
+                  'v2.4.0 • Connected',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    fontFamily: 'monospace',
+                    fontSize: 10,
+                    color: isDark ? Colors.grey[600] : Colors.grey[400],
+                  ),
+                ),
+              ),
+            ),
+          ],
         ),
       ),
     );
   }
 }
 
-class _IconCluster extends StatelessWidget {
-  const _IconCluster({
-    required this.icon,
-    required this.pulseScale,
-    required this.size,
-  });
+class _TaskContent {
+  const _TaskContent({required this.messages, required this.tips});
 
-  final IconData icon;
-  final double pulseScale;
-  final double size;
+  final List<String> messages;
+  final List<String> tips;
+}
+
+// Background animated pulses as seen in the absolute HTML layer
+class _BackgroundPulses extends StatefulWidget {
+  const _BackgroundPulses();
+
+  @override
+  State<_BackgroundPulses> createState() => _BackgroundPulsesState();
+}
+
+class _BackgroundPulsesState extends State<_BackgroundPulses>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _pulseController;
+
+  @override
+  void initState() {
+    super.initState();
+    _pulseController = AnimationController(
+      vsync: this,
+      duration: const Duration(seconds: 2),
+    )..repeat(reverse: true);
+  }
+
+  @override
+  void dispose() {
+    _pulseController.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
-    final glowSize = size * 0.84;
-    final iconSize = size * 0.5;
-    final starSize = size * 0.16;
-    final starTop = size * 0.19;
-    final starRight = size * 0.20;
+    return Positioned.fill(
+      child: AnimatedBuilder(
+        animation: _pulseController,
+        builder: (context, _) {
+          return Opacity(
+            opacity: 0.2,
+            child: Stack(
+              children: [
+                Positioned(
+                  top: 100,
+                  left: 40,
+                  child: Container(
+                    width: 4,
+                    height: 4,
+                    decoration: const BoxDecoration(
+                      color: _primaryPurple,
+                      shape: BoxShape.circle,
+                    ),
+                  ),
+                ),
+                Positioned(
+                  top: 200,
+                  right: 60,
+                  child: AnimatedOpacity(
+                    duration: const Duration(milliseconds: 500),
+                    opacity: _pulseController.value,
+                    child: Container(
+                      width: 6,
+                      height: 6,
+                      decoration: const BoxDecoration(
+                        color: _gold,
+                        shape: BoxShape.circle,
+                      ),
+                    ),
+                  ),
+                ),
+                Positioned(
+                  bottom: 150,
+                  left: 80,
+                  child: AnimatedOpacity(
+                    duration: const Duration(milliseconds: 500),
+                    opacity: 1.0 - _pulseController.value,
+                    child: Container(
+                      width: 4,
+                      height: 4,
+                      decoration: const BoxDecoration(
+                        color: _primaryPurple,
+                        shape: BoxShape.circle,
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          );
+        },
+      ),
+    );
+  }
+}
+
+class _LoadingOrbit extends StatelessWidget {
+  const _LoadingOrbit({required this.rotationValue, required this.pulseValue});
+
+  final double rotationValue;
+  final double pulseValue;
+
+  @override
+  Widget build(BuildContext context) {
+    // Layout size identical to 120px HTML
+    const double size = 120.0;
+
+    // Create 8 particles
+    final particles = List.generate(8, (index) {
+      // Calculate delay fraction
+      // According to CSS, duration is 1.5s, each delayed by 0.18s
+      // 0.18/1.5 = 0.12
+      final delayFraction = index * 0.12;
+
+      // Compute effective time for this particle (0 to 1)
+      double t = (pulseValue - delayFraction) % 1.0;
+      if (t < 0) t += 1.0;
+
+      // Triangle pulse value: 0 -> 1 -> 0
+      double phase = t <= 0.5 ? (t * 2) : (2 - (t * 2));
+
+      return _Particle(index: index, phase: phase);
+    });
 
     return SizedBox(
       width: size,
       height: size,
-      child: Center(
-        child: Transform.scale(
-          scale: pulseScale,
-          child: Stack(
-            clipBehavior: Clip.none,
-            alignment: Alignment.center,
-            children: [
-              Container(
-                width: glowSize,
-                height: glowSize,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  gradient: RadialGradient(
-                    colors: [
-                      TawakkalColors.accentGold.withValues(alpha: 0.26),
-                      TawakkalColors.accentGold.withValues(alpha: 0),
-                    ],
-                  ),
+      child: Stack(
+        clipBehavior: Clip.none,
+        alignment: Alignment.center,
+        children: [
+          // Underlying large purple glow (from HTML background blur)
+          Container(
+            width: size * 1.5,
+            height: size * 1.5,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              boxShadow: [
+                BoxShadow(
+                  color: _primaryPurple.withValues(alpha: 0.1),
+                  blurRadius: 40,
+                  spreadRadius: 20,
                 ),
-              ),
-              Icon(icon, size: iconSize, color: TawakkalColors.accentGold),
-              Positioned(
-                top: starTop,
-                right: starRight,
-                child: Icon(
-                  Icons.star_rounded,
-                  size: starSize,
-                  color: TawakkalColors.accentGold.withValues(alpha: 0.92),
-                ),
-              ),
-            ],
+              ],
+            ),
           ),
-        ),
+
+          // Center core tiny glow
+          Container(
+            width: 64,
+            height: 64,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              boxShadow: [
+                BoxShadow(
+                  color: _primaryPurple.withValues(alpha: 0.2),
+                  blurRadius: 20,
+                  spreadRadius: 10,
+                ),
+              ],
+            ),
+          ),
+
+          // Rotating particles
+          Transform.rotate(
+            angle: rotationValue * 2 * math.pi,
+            child: Stack(children: particles),
+          ),
+        ],
       ),
     );
   }
 }
 
-class _LoadingBarBlock extends StatelessWidget {
-  const _LoadingBarBlock({
-    required this.progress,
-    required this.showPercentage,
-    required this.animationValue,
-  });
+class _Particle extends StatelessWidget {
+  const _Particle({required this.index, required this.phase});
 
-  final double progress;
-  final bool showPercentage;
-  final double animationValue;
+  final int index;
+  final double phase;
 
   @override
   Widget build(BuildContext context) {
-    final clampedProgress = progress.clamp(0, 1).toDouble();
-    final percentageLabel = !showPercentage
-        ? null
-        : '${(clampedProgress * 100).round()}%';
+    // Calculate angle for this index: 8 items -> 45 degrees step -> pi/4
+    // Start top -> subtract pi/2
+    final double angle = (index * math.pi / 4) - (math.pi / 2);
 
-    return Column(
-      key: const Key('universal-loading-bar-block'),
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            Text(
-              'Loading',
-              style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                color: TawakkalColors.textSecondary.withValues(alpha: 0.8),
-                letterSpacing: 1.0,
-                fontWeight: FontWeight.w700,
-              ),
-            ),
-            if (percentageLabel != null)
-              Text(
-                percentageLabel,
-                style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                  color: TawakkalColors.textSecondary.withValues(alpha: 0.8),
-                  letterSpacing: 0.9,
-                  fontWeight: FontWeight.w700,
-                ),
-              ),
-          ],
-        ),
-        const SizedBox(height: 8),
-        ClipRRect(
-          borderRadius: BorderRadius.circular(999),
-          child: Container(
-            key: const Key('universal-loading-progress-track'),
-            height: 4,
-            color: const Color(0xFF17211F),
-            child: _DeterminateFill(
-              progress: clampedProgress,
-              animationValue: animationValue,
-            ),
-          ),
-        ),
-      ],
-    );
-  }
-}
+    // Radius of the circle (120px / 2 = 60). Radius to center of 12px particle is about 54.
+    const double radius = 54.0;
 
-class _DeterminateFill extends StatelessWidget {
-  const _DeterminateFill({
-    required this.progress,
-    required this.animationValue,
-  });
+    final double dx = math.cos(angle) * radius;
+    final double dy = math.sin(angle) * radius;
 
-  final double progress;
-  final double animationValue;
+    final double scale = 0.6 + (0.6 * phase); // 0.6 -> 1.2
+    final double opacity =
+        0.3 + (0.7 * phase); // Adjusted slightly for flutter visual punch
 
-  @override
-  Widget build(BuildContext context) {
     return Align(
-      alignment: Alignment.centerLeft,
-      child: FractionallySizedBox(
-        key: const Key('universal-loading-determinate-fill'),
-        widthFactor: progress,
-        child: Stack(
-          fit: StackFit.expand,
-          children: [
-            DecoratedBox(
+      alignment: Alignment.center,
+      child: Transform.translate(
+        offset: Offset(dx, dy),
+        child: Transform.scale(
+          scale: scale,
+          child: Opacity(
+            opacity: opacity,
+            child: Container(
+              width: 12,
+              height: 12,
               decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  colors: [
-                    TawakkalColors.surfaceDarkAlt,
-                    TawakkalColors.primary,
-                    TawakkalColors.accentGold,
-                  ],
-                ),
+                color: _primaryPurple,
+                shape: BoxShape.circle,
                 boxShadow: [
                   BoxShadow(
-                    blurRadius: 12,
-                    color: TawakkalColors.primary.withValues(alpha: 0.28),
+                    color: _primaryPurple.withValues(alpha: 0.8),
+                    blurRadius: 15,
+                    spreadRadius: 2,
                   ),
                 ],
               ),
             ),
-            FractionalTranslation(
-              translation: Offset((animationValue * 1.9) - 0.95, 0),
-              child: Align(
-                alignment: Alignment.centerLeft,
-                child: FractionallySizedBox(
-                  widthFactor: 0.46,
-                  child: DecoratedBox(
-                    decoration: BoxDecoration(
-                      gradient: LinearGradient(
-                        colors: [
-                          Colors.transparent,
-                          Colors.white.withValues(alpha: 0.25),
-                          Colors.transparent,
-                        ],
-                      ),
-                    ),
-                  ),
-                ),
-              ),
-            ),
-          ],
+          ),
         ),
       ),
     );
