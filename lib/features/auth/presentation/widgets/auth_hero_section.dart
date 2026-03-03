@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 
 import '../../../../app/theme/colors.dart';
 
@@ -119,10 +120,9 @@ class _AnimatedLogoContainer extends StatelessWidget {
           ),
           child: Padding(
             padding: const EdgeInsets.all(18),
-            child: Image.asset(
-              'assets/images/tawakkal_transparent.png',
+            child: SvgPicture.asset(
+              'assets/icons/tawakkal_logo.svg',
               fit: BoxFit.contain,
-              filterQuality: FilterQuality.high,
             ),
           ),
         ),

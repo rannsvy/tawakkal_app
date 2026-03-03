@@ -1,6 +1,7 @@
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../../app/theme/colors.dart';
@@ -413,10 +414,16 @@ class _AiInsightContent extends StatelessWidget {
                 borderRadius: BorderRadius.circular(12),
                 border: Border.all(color: const Color(0x330ED8A5)),
               ),
-              child: const Icon(
-                Icons.auto_awesome_rounded,
-                color: TawakkalColors.primary,
-                size: 22,
+              child: Center(
+                child: SvgPicture.asset(
+                  'assets/icons/tawakkal_ai_2.svg',
+                  width: 22,
+                  height: 22,
+                  colorFilter: const ColorFilter.mode(
+                    TawakkalColors.primary,
+                    BlendMode.srcIn,
+                  ),
+                ),
               ),
             ),
             const SizedBox(width: 10),

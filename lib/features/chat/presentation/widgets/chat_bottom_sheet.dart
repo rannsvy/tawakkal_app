@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 
 import '../../../../app/theme/colors.dart';
 import '../../domain/entities/chat_message.dart';
@@ -162,12 +163,18 @@ class _Header extends ConsumerWidget {
             height: 34,
             decoration: const BoxDecoration(
               shape: BoxShape.circle,
-              color: TawakkalColors.primary,
+              color: Color.fromARGB(255, 0, 0, 0),
             ),
-            child: const Icon(
-              Icons.auto_awesome_rounded,
-              size: 20,
-              color: TawakkalColors.backgroundDark,
+            child: Center(
+              child: SvgPicture.asset(
+                'assets/icons/tawakkal_ai_2.svg',
+                width: 20,
+                height: 20,
+                colorFilter: const ColorFilter.mode(
+                  Colors.white,
+                  BlendMode.srcIn,
+                ),
+              ),
             ),
           ),
           const SizedBox(width: 10),

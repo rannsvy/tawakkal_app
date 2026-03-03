@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 
 import '../../../../app/theme/colors.dart';
 import 'chat_bottom_sheet.dart';
@@ -25,14 +26,14 @@ class ChatFloatingDock extends StatelessWidget {
               height: 58,
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
-                color: TawakkalColors.primary,
+                color: const Color.fromARGB(255, 0, 0, 0),
                 border: Border.all(
                   color: isDark ? TawakkalColors.backgroundDark : Colors.white,
                   width: 3,
                 ),
                 boxShadow: [
                   BoxShadow(
-                    color: TawakkalColors.primary.withValues(
+                    color: const Color.fromARGB(255, 0, 0, 0).withValues(
                       alpha: isDark ? 0.28 : 0.23,
                     ),
                     blurRadius: 18,
@@ -40,10 +41,16 @@ class ChatFloatingDock extends StatelessWidget {
                   ),
                 ],
               ),
-              child: const Icon(
-                Icons.auto_awesome_rounded,
-                size: 28,
-                color: TawakkalColors.backgroundDark,
+              child: Center(
+                child: SvgPicture.asset(
+                  'assets/icons/tawakkal_ai_2.svg',
+                  width: 28,
+                  height: 28,
+                  colorFilter: const ColorFilter.mode(
+                    Colors.white,
+                    BlendMode.srcIn,
+                  ),
+                ),
               ),
             ),
           ),
