@@ -4,6 +4,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:tawakkal_app/features/chat/domain/entities/chat_context.dart';
 import 'package:tawakkal_app/features/chat/domain/entities/chat_message.dart';
 import 'package:tawakkal_app/features/chat/domain/repositories/chat_repository.dart';
+import 'package:tawakkal_app/features/chat/domain/entities/chat_state.dart';
 import 'package:tawakkal_app/features/chat/presentation/providers/chat_providers.dart';
 import 'package:tawakkal_app/features/chat/presentation/widgets/chat_bottom_sheet.dart';
 import 'package:tawakkal_app/features/chat/presentation/widgets/chat_floating_dock.dart';
@@ -36,11 +37,16 @@ void main() {
   testWidgets('sending message renders user and assistant bubbles', (
     tester,
   ) async {
+    final container = ProviderContainer(
+      overrides: [
+        chatRepositoryProvider.overrideWithValue(_FakeChatRepository()),
+      ],
+    );
+    addTearDown(container.dispose);
+
     await tester.pumpWidget(
-      ProviderScope(
-        overrides: [
-          chatRepositoryProvider.overrideWithValue(_FakeChatRepository()),
-        ],
+      UncontrolledProviderScope(
+        container: container,
         child: const MaterialApp(home: Scaffold(body: ChatBottomSheet())),
       ),
     );
@@ -55,6 +61,35 @@ void main() {
       find.text('Mock reply for: Explain Surah Al-Ikhlas'),
       findsOneWidget,
     );
+
+    expect(find.byTooltip('Copy response'), findsOneWidget);
+    expect(find.byTooltip('Helpful response'), findsOneWidget);
+    expect(find.byTooltip('Not helpful response'), findsOneWidget);
+
+    await tester.tap(find.byTooltip('Helpful response'));
+    await tester.pumpAndSettle();
+    expect(
+      container.read(chatControllerProvider).reactionsByMessageId.values.first,
+      ChatReaction.up,
+    );
+
+    await tester.tap(find.byTooltip('Not helpful response'));
+    await tester.pumpAndSettle();
+    expect(
+      container.read(chatControllerProvider).reactionsByMessageId.values.first,
+      ChatReaction.down,
+    );
+
+    await tester.tap(find.byTooltip('Not helpful response'));
+    await tester.pumpAndSettle();
+    expect(
+      container.read(chatControllerProvider).reactionsByMessageId,
+      isEmpty,
+    );
+
+    await tester.tap(find.byTooltip('Copy response'));
+    await tester.pumpAndSettle();
+    expect(find.text('Response copied.'), findsOneWidget);
   });
 }
 

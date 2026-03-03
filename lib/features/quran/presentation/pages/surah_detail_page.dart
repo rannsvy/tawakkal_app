@@ -33,9 +33,12 @@ class SurahDetailPage extends ConsumerWidget {
           onRetry: () => ref.invalidate(surahDetailProvider(surahId)),
           builder: (detail) {
             final chatContext = ChatPromptBuilder.buildContext(detail);
-            if (ref.read(activeSurahContextProvider) != chatContext) {
-              ref.read(activeSurahContextProvider.notifier).state = chatContext;
-            }
+            WidgetsBinding.instance.addPostFrameCallback((_) {
+              if (ref.read(activeSurahContextProvider) != chatContext) {
+                ref.read(activeSurahContextProvider.notifier).state =
+                    chatContext;
+              }
+            });
 
             return ListView(
               padding: const EdgeInsets.fromLTRB(16, 8, 16, 32),

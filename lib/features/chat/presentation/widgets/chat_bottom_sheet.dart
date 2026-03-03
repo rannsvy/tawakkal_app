@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../app/theme/colors.dart';
+import '../../domain/entities/chat_message.dart';
 import '../../domain/entities/chat_state.dart';
 import '../providers/chat_providers.dart';
 import 'chat_message_bubble.dart';
@@ -56,6 +58,16 @@ class _ChatBottomSheetState extends ConsumerState<ChatBottomSheet> {
     });
   }
 
+  void _copyAssistantMessage(String content) {
+    if (!mounted) {
+      return;
+    }
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(const SnackBar(content: Text('Response copied.')));
+    Clipboard.setData(ClipboardData(text: content)).catchError((_) {});
+  }
+
   @override
   Widget build(BuildContext context) {
     final chatState = ref.watch(chatControllerProvider);
@@ -107,6 +119,15 @@ class _ChatBottomSheetState extends ConsumerState<ChatBottomSheet> {
                   : _MessageList(
                       chatState: chatState,
                       scrollController: _scrollController,
+                      onCopyMessage: _copyAssistantMessage,
+                      onToggleReaction: (messageId, reaction) {
+                        ref
+                            .read(chatControllerProvider.notifier)
+                            .toggleReaction(
+                              messageId: messageId,
+                              reaction: reaction,
+                            );
+                      },
                     ),
             ),
             if (chatState.error != null && chatState.error!.isNotEmpty)
@@ -228,10 +249,17 @@ class _EmptyState extends StatelessWidget {
 }
 
 class _MessageList extends StatelessWidget {
-  const _MessageList({required this.chatState, required this.scrollController});
+  const _MessageList({
+    required this.chatState,
+    required this.scrollController,
+    required this.onCopyMessage,
+    required this.onToggleReaction,
+  });
 
   final ChatState chatState;
   final ScrollController scrollController;
+  final ValueChanged<String> onCopyMessage;
+  final void Function(String messageId, ChatReaction reaction) onToggleReaction;
 
   @override
   Widget build(BuildContext context) {
@@ -241,7 +269,20 @@ class _MessageList extends StatelessWidget {
       itemCount: chatState.messages.length + (chatState.isLoading ? 1 : 0),
       itemBuilder: (context, index) {
         if (index < chatState.messages.length) {
-          return ChatMessageBubble(message: chatState.messages[index]);
+          final message = chatState.messages[index];
+          return ChatMessageBubble(
+            message: message,
+            selectedReaction: chatState.reactionsByMessageId[message.id],
+            onCopy: message.role == ChatRole.assistant
+                ? () => onCopyMessage(message.content)
+                : null,
+            onThumbsUp: message.role == ChatRole.assistant
+                ? () => onToggleReaction(message.id, ChatReaction.up)
+                : null,
+            onThumbsDown: message.role == ChatRole.assistant
+                ? () => onToggleReaction(message.id, ChatReaction.down)
+                : null,
+          );
         }
         return const _TypingIndicator();
       },

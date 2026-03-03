@@ -96,6 +96,22 @@ class ChatController extends Notifier<ChatState> {
     state = const ChatState();
   }
 
+  void toggleReaction({
+    required String messageId,
+    required ChatReaction reaction,
+  }) {
+    final next = <String, ChatReaction>{...state.reactionsByMessageId};
+    final current = next[messageId];
+
+    if (current == reaction) {
+      next.remove(messageId);
+    } else {
+      next[messageId] = reaction;
+    }
+
+    state = state.copyWith(reactionsByMessageId: next);
+  }
+
   ChatMessage _createMessage({
     required ChatRole role,
     required String content,
