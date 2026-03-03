@@ -7,6 +7,7 @@ import '../../../../app/theme/colors.dart';
 import '../../../../shared/widgets/rich_page_background.dart';
 import '../../../audio/presentation/pages/audio_page.dart';
 import '../../../audio/presentation/widgets/persistent_mini_player.dart';
+import '../../../chat/presentation/widgets/chat_floating_dock.dart';
 import '../../../dashboard/presentation/pages/dashboard_page.dart';
 import '../../../learning/presentation/pages/learning_page.dart';
 import '../../../profile/presentation/pages/profile_page.dart';
@@ -183,6 +184,13 @@ class _HomePageState extends State<HomePage> {
                 child: ColoredBox(
                   color: isDark ? Colors.black : TawakkalColors.backgroundLight,
                 ),
+              ),
+              Positioned(
+                right: 16,
+                bottom: _belajarBottomOverlayOverlap > 0
+                    ? _belajarBottomOverlayOverlap + 12
+                    : 132,
+                child: const ChatFloatingDock(),
               ),
             ],
           ),

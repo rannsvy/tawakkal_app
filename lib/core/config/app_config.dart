@@ -16,6 +16,11 @@ class AppConfig {
   static bool get hasSupabaseCredentials =>
       supabaseUrl.isNotEmpty && supabaseAnonKey.isNotEmpty;
 
+  static const String aiChatEndpoint = String.fromEnvironment(
+    'CHAT_AI_TAWAKKAL_ENDPOINT',
+    defaultValue: '',
+  );
+
   static const String aiQuizEndpoint = String.fromEnvironment(
     'AI_QUIZ_ENDPOINT',
     defaultValue: '',

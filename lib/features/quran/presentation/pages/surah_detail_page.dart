@@ -9,6 +9,8 @@ import '../../../../shared/widgets/async_state_view.dart';
 import '../../../../shared/widgets/rich_info_card.dart';
 import '../../../../shared/widgets/rich_page_background.dart';
 import '../../../audio/presentation/providers/audio_providers.dart';
+import '../../../chat/data/chat_prompt_builder.dart';
+import '../../../chat/presentation/providers/chat_providers.dart';
 import '../providers/quran_providers.dart';
 import '../widgets/ayah_card.dart';
 
@@ -30,6 +32,11 @@ class SurahDetailPage extends ConsumerWidget {
           value: detailState,
           onRetry: () => ref.invalidate(surahDetailProvider(surahId)),
           builder: (detail) {
+            final chatContext = ChatPromptBuilder.buildContext(detail);
+            if (ref.read(activeSurahContextProvider) != chatContext) {
+              ref.read(activeSurahContextProvider.notifier).state = chatContext;
+            }
+
             return ListView(
               padding: const EdgeInsets.fromLTRB(16, 8, 16, 32),
               children: [
