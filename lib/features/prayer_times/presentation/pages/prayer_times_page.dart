@@ -408,7 +408,10 @@ class _ManualLocationSheetState extends ConsumerState<_ManualLocationSheet> {
                     .map(
                       (value) => DropdownMenuItem<String>(
                         value: value,
-                        child: Text(value),
+                        child: Text(
+                          value,
+                          style: const TextStyle(color: Colors.white),
+                        ),
                       ),
                     )
                     .toList(growable: false),
@@ -436,7 +439,10 @@ class _ManualLocationSheetState extends ConsumerState<_ManualLocationSheet> {
                     .map(
                       (value) => DropdownMenuItem<String>(
                         value: value,
-                        child: Text(value),
+                        child: Text(
+                          value,
+                          style: const TextStyle(color: Colors.white),
+                        ),
                       ),
                     )
                     .toList(growable: false),
