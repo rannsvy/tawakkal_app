@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
 
@@ -68,31 +69,17 @@ class _LaunchExperiencePageState extends State<LaunchExperiencePage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: DecoratedBox(
-        decoration: const BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topCenter,
-            end: Alignment.bottomCenter,
-            colors: [Colors.black, Colors.black, Colors.black],
+      body: AnimatedSwitcher(
+        duration: const Duration(milliseconds: 400),
+        switchInCurve: Curves.easeOutCubic,
+        switchOutCurve: Curves.easeInCubic,
+        child: switch (_stage) {
+          _LaunchStage.checking => const _LaunchLoading(),
+          _LaunchStage.splash => const _LaunchSplash(),
+          _LaunchStage.onboarding => _OnboardingPager(
+            onFinished: _finishOnboarding,
           ),
-        ),
-        child: CustomPaint(
-          painter: IslamicPatternPainter(opacity: 0.06, color: Colors.black),
-          child: SafeArea(
-            child: AnimatedSwitcher(
-              duration: const Duration(milliseconds: 400),
-              switchInCurve: Curves.easeOutCubic,
-              switchOutCurve: Curves.easeInCubic,
-              child: switch (_stage) {
-                _LaunchStage.checking => const _LaunchLoading(),
-                _LaunchStage.splash => const _LaunchSplash(),
-                _LaunchStage.onboarding => _OnboardingPager(
-                  onFinished: _finishOnboarding,
-                ),
-              },
-            ),
-          ),
-        ),
+        },
       ),
     );
   }
@@ -103,14 +90,23 @@ class _LaunchLoading extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return const Center(
-      key: ValueKey('launch-loading'),
-      child: SizedBox(
-        width: 28,
-        height: 28,
-        child: CircularProgressIndicator(
-          strokeWidth: 3,
-          color: TawakkalColors.primary,
+    return DecoratedBox(
+      key: const ValueKey('launch-loading'),
+      decoration: const BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topCenter,
+          end: Alignment.bottomCenter,
+          colors: [Colors.black, Colors.black],
+        ),
+      ),
+      child: const Center(
+        child: SizedBox(
+          width: 28,
+          height: 28,
+          child: CircularProgressIndicator(
+            strokeWidth: 3,
+            color: TawakkalColors.primary,
+          ),
         ),
       ),
     );
@@ -122,13 +118,25 @@ class _LaunchSplash extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Center(
+    return DecoratedBox(
       key: const ValueKey('launch-splash'),
-      child: SingleChildScrollView(
-        physics: const NeverScrollableScrollPhysics(),
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 24),
-          child: const AnimatedLogo(),
+      decoration: const BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topCenter,
+          end: Alignment.bottomCenter,
+          colors: [Colors.black, Colors.black],
+        ),
+      ),
+      child: CustomPaint(
+        painter: IslamicPatternPainter(opacity: 0.06, color: Colors.black),
+        child: Center(
+          child: SingleChildScrollView(
+            physics: const NeverScrollableScrollPhysics(),
+            child: const Padding(
+              padding: EdgeInsets.symmetric(horizontal: 24),
+              child: AnimatedLogo(),
+            ),
+          ),
         ),
       ),
     );
@@ -168,10 +176,15 @@ class _OnboardingPagerState extends State<_OnboardingPager> {
       await _finishAndEnter();
       return;
     }
+
     await _pageController.nextPage(
-      duration: const Duration(milliseconds: 400),
-      curve: Curves.easeInOutCubic,
+      duration: const Duration(milliseconds: 350),
+      curve: Curves.easeOutCubic,
     );
+  }
+
+  Future<void> _secondaryAction() async {
+    await _finishAndEnter();
   }
 
   @override
@@ -182,181 +195,181 @@ class _OnboardingPagerState extends State<_OnboardingPager> {
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final topColor = isDark
+        ? TawakkalColors.backgroundCedar
+        : const Color(0xFFF5F7F6);
+    final bottomColor = isDark
+        ? TawakkalColors.backgroundDark
+        : const Color(0xFFEFF4F2);
+    final primaryBg = isDark
+        ? const Color(0xFFA5D564)
+        : const Color(0xFFB7DE72);
+    final primaryFg = isDark
+        ? const Color(0xFF163622)
+        : const Color(0xFF2C6A42);
+    final secondaryBg = isDark
+        ? TawakkalColors.surfaceDark.withValues(alpha: 0.75)
+        : Colors.white;
+    final secondaryBorder = isDark
+        ? TawakkalColors.surfaceDarkAlt
+        : const Color(0xFFE4E9E7);
+    final secondaryFg = isDark
+        ? TawakkalColors.textPrimaryDark
+        : const Color(0xFF202A27);
+
+    return DecoratedBox(
       key: const ValueKey('launch-onboarding'),
-      padding: const EdgeInsets.fromLTRB(20, 8, 20, 22),
-      child: Column(
-        children: [
-          // Top bar with brand mark and skip button
-          _TopBar(onSkip: _isSubmitting ? null : _finishAndEnter),
-          const SizedBox(height: 8),
-          // Page view with cards
-          Expanded(
-            child: PageView.builder(
-              controller: _pageController,
-              itemCount: onboardingSlides.length,
-              onPageChanged: (index) => setState(() => _pageIndex = index),
-              itemBuilder: (context, index) {
-                return OnboardingCard(
-                  slide: onboardingSlides[index],
-                  isVisible: index == _pageIndex,
-                );
-              },
-            ),
-          ),
-          const SizedBox(height: 20),
-          // Star progress indicator
-          StarProgressIndicator(
-            currentIndex: _pageIndex,
-            totalCount: onboardingSlides.length,
-          ),
-          const SizedBox(height: 24),
-          // Primary action button
-          FilledButton.icon(
-            onPressed: _isSubmitting ? null : _nextOrFinish,
-            style: FilledButton.styleFrom(
-              minimumSize: const Size.fromHeight(56),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(20),
-              ),
-              backgroundColor: TawakkalColors.primary,
-              foregroundColor: TawakkalColors.backgroundDark,
-            ),
-            label: Text(_isLastPage ? 'Begin Journey' : 'Next'),
-            icon: _isSubmitting
-                ? const SizedBox(
-                    width: 18,
-                    height: 18,
-                    child: CircularProgressIndicator(
-                      strokeWidth: 2,
-                      color: TawakkalColors.backgroundDark,
-                    ),
-                  )
-                : Icon(
-                    _isLastPage
-                        ? Icons.arrow_forward_rounded
-                        : Icons.chevron_right_rounded,
-                  ),
-          ),
-          const SizedBox(height: 12),
-          // Secondary action
-          TextButton(
-            onPressed: _isSubmitting ? null : _finishAndEnter,
-            child: RichText(
-              text: TextSpan(
-                style: GoogleFonts.inter(
-                  fontSize: 14,
-                  fontWeight: FontWeight.w500,
-                  color: TawakkalColors.textSecondary,
-                  letterSpacing: 0.1,
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topCenter,
+          end: Alignment.bottomCenter,
+          colors: [topColor, bottomColor],
+        ),
+      ),
+      child: SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(20, 14, 20, 18),
+          child: Column(
+            children: [
+              const _CenteredBrandLogo(),
+              const SizedBox(height: 16),
+              Expanded(
+                child: PageView.builder(
+                  controller: _pageController,
+                  itemCount: onboardingSlides.length,
+                  onPageChanged: (index) => setState(() => _pageIndex = index),
+                  itemBuilder: (context, index) {
+                    return OnboardingCard(
+                      slide: onboardingSlides[index],
+                      isVisible: index == _pageIndex,
+                    );
+                  },
                 ),
-                children: const [
-                  TextSpan(text: 'Already have an account? '),
-                  TextSpan(
-                    text: 'Log In',
-                    style: TextStyle(
-                      color: TawakkalColors.textPrimaryDark,
-                      fontWeight: FontWeight.w700,
+              ),
+              const SizedBox(height: 16),
+              StarProgressIndicator(
+                currentIndex: _pageIndex,
+                totalCount: onboardingSlides.length,
+              ),
+              const SizedBox(height: 18),
+              SizedBox(
+                width: double.infinity,
+                child: FilledButton(
+                  onPressed: _isSubmitting ? null : _nextOrFinish,
+                  style: FilledButton.styleFrom(
+                    minimumSize: const Size.fromHeight(52),
+                    backgroundColor: primaryBg,
+                    foregroundColor: primaryFg,
+                    disabledBackgroundColor: primaryBg.withValues(alpha: 0.65),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    textStyle: GoogleFonts.inter(
+                      fontSize: 18,
+                      fontWeight: FontWeight.w600,
                     ),
                   ),
-                ],
+                  child: _isSubmitting
+                      ? const SizedBox(
+                          width: 20,
+                          height: 20,
+                          child: CircularProgressIndicator(strokeWidth: 2.2),
+                        )
+                      : Text(_isLastPage ? 'Sign in' : 'Next'),
+                ),
               ),
-            ),
+              const SizedBox(height: 10),
+              SizedBox(
+                width: double.infinity,
+                child: OutlinedButton(
+                  onPressed: _isSubmitting ? null : _secondaryAction,
+                  style: OutlinedButton.styleFrom(
+                    minimumSize: const Size.fromHeight(48),
+                    foregroundColor: secondaryFg,
+                    backgroundColor: secondaryBg,
+                    side: BorderSide(color: secondaryBorder),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    textStyle: GoogleFonts.inter(
+                      fontSize: 18,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                  child: Text(_isLastPage ? 'Sign up' : 'Skip'),
+                ),
+              ),
+            ],
           ),
-        ],
+        ),
       ),
     );
   }
 }
 
-class _TopBar extends StatelessWidget {
-  const _TopBar({required this.onSkip});
-
-  final VoidCallback? onSkip;
+class _CenteredBrandLogo extends StatelessWidget {
+  const _CenteredBrandLogo();
 
   @override
   Widget build(BuildContext context) {
-    return Row(
-      children: [
-        const _BrandMark(),
-        const Spacer(),
-        TextButton(
-          onPressed: onSkip,
-          style: TextButton.styleFrom(
-            foregroundColor: TawakkalColors.textSecondary,
-          ),
-          child: Text(
-            'Skip',
-            style: GoogleFonts.inter(
-              fontSize: 15,
-              fontWeight: FontWeight.w600,
-              letterSpacing: 0.2,
-            ),
-          ),
-        ),
-      ],
-    );
-  }
-}
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    const accentOrange = Color(0xFFF2AE8F);
+    const lightThemeGreen = Color(0xFF1F5F44);
 
-class _BrandMark extends StatelessWidget {
-  const _BrandMark();
+    final taColor = isDark ? accentOrange : lightThemeGreen;
+    final wakColor = isDark ? Colors.white : lightThemeGreen;
+    final kalColor = isDark ? accentOrange : lightThemeGreen;
 
-  @override
-  Widget build(BuildContext context) {
-    return Row(
-      children: [
-        Container(
-          width: 38,
-          height: 38,
-          decoration: BoxDecoration(
-            shape: BoxShape.circle,
-            gradient: LinearGradient(
-              colors: [
-                TawakkalColors.primary.withValues(alpha: 0.2),
-                TawakkalColors.accentGold.withValues(alpha: 0.15),
-              ],
-            ),
-            border: Border.all(
-              color: TawakkalColors.primary.withValues(alpha: 0.35),
-              width: 1.5,
-            ),
-          ),
-          child: Padding(
-            padding: const EdgeInsets.all(7),
-            child: Image.asset(
-              'assets/images/tawakkal_transparent.png',
-              fit: BoxFit.contain,
-              filterQuality: FilterQuality.high,
-            ),
-          ),
-        ),
-        const SizedBox(width: 12),
-        Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
+    return SizedBox(
+      height: 82,
+      child: Center(
+        child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Text(
-              'Tawakkal',
-              style: GoogleFonts.newsreader(
-                fontSize: 18,
-                fontWeight: FontWeight.w700,
-                color: TawakkalColors.textPrimaryDark,
-                height: 1.1,
-              ),
+            SvgPicture.asset(
+              'assets/icons/tawakkal_logo.svg',
+              width: 40,
+              height: 40,
             ),
-            Text(
-              'توكل',
-              style: GoogleFonts.notoNaskhArabic(
-                fontSize: 14,
-                fontWeight: FontWeight.w500,
-                color: TawakkalColors.textSecondary,
-                height: 1.2,
+            const SizedBox(width: 10),
+            RichText(
+              key: const ValueKey('onboarding-brand-wordmark'),
+              text: TextSpan(
+                children: [
+                  TextSpan(
+                    text: 'Ta',
+                    style: GoogleFonts.inter(
+                      fontSize: 28,
+                      fontWeight: FontWeight.w700,
+                      color: taColor,
+                      letterSpacing: 0.2,
+                    ),
+                  ),
+                  TextSpan(
+                    text: 'wak',
+                    style: GoogleFonts.inter(
+                      fontSize: 28,
+                      fontWeight: FontWeight.w700,
+                      color: wakColor,
+                      letterSpacing: 0.2,
+                    ),
+                  ),
+                  TextSpan(
+                    text: 'kal',
+                    style: GoogleFonts.inter(
+                      fontSize: 28,
+                      fontWeight: FontWeight.w700,
+                      color: kalColor,
+                      letterSpacing: 0.2,
+                    ),
+                  ),
+                ],
               ),
             ),
           ],
         ),
-      ],
+      ),
     );
   }
 }
