@@ -1,5 +1,9 @@
 class AppConfig {
   static const String appName = 'Tawakkal';
+  static const String oauthCallbackScheme = 'tawakkalapp';
+  static const String oauthCallbackHost = 'login-callback';
+  static const String oauthCallbackUrl =
+      '$oauthCallbackScheme://$oauthCallbackHost';
 
   static const String equranBaseUrl = 'https://equran.id/api/v2';
   static const String defaultLanguage = 'id';

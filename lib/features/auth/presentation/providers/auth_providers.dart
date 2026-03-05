@@ -73,6 +73,63 @@ class AuthController extends AsyncNotifier<TawakkalUser?> {
     });
   }
 
+  Future<void> signInWithEmailDirect({
+    required String email,
+    required String password,
+  }) async {
+    final repository = ref.read(authRepositoryProvider);
+    await repository.signInWithEmail(email: email, password: password);
+  }
+
+  Future<void> signInWithGoogleDirect() async {
+    final repository = ref.read(authRepositoryProvider);
+    await repository.signInWithGoogle();
+  }
+
+  Future<bool> signUpWithEmail({
+    required String fullName,
+    required String email,
+    required String password,
+  }) async {
+    final repository = ref.read(authRepositoryProvider);
+    return repository.signUpWithEmail(
+      fullName: fullName,
+      email: email,
+      password: password,
+    );
+  }
+
+  Future<void> verifySignupOtp({
+    required String email,
+    required String code,
+  }) async {
+    final repository = ref.read(authRepositoryProvider);
+    await repository.verifySignupOtp(email: email, code: code);
+  }
+
+  Future<void> resendSignupOtp({required String email}) async {
+    final repository = ref.read(authRepositoryProvider);
+    await repository.resendSignupOtp(email: email);
+  }
+
+  Future<void> requestPasswordResetOtp({required String email}) async {
+    final repository = ref.read(authRepositoryProvider);
+    await repository.requestPasswordResetOtp(email: email);
+  }
+
+  Future<void> verifyPasswordResetOtp({
+    required String email,
+    required String code,
+  }) async {
+    final repository = ref.read(authRepositoryProvider);
+    await repository.verifyPasswordResetOtp(email: email, code: code);
+  }
+
+  Future<void> updatePassword({required String newPassword}) async {
+    final repository = ref.read(authRepositoryProvider);
+    await repository.updatePassword(newPassword: newPassword);
+  }
+
   Future<void> signOut() async {
     final repository = ref.read(authRepositoryProvider);
     await repository.signOut();

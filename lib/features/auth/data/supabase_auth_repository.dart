@@ -1,7 +1,9 @@
 import 'dart:async';
+import 'package:flutter/foundation.dart';
 
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import '../../../core/config/app_config.dart';
 import '../../../core/errors/app_exception.dart';
 import '../../../core/storage/secure_storage_service.dart';
 import '../domain/auth_repository.dart';
@@ -67,13 +69,103 @@ class SupabaseAuthRepository implements AuthRepository {
   }
 
   @override
+  Future<bool> signUpWithEmail({
+    required String fullName,
+    required String email,
+    required String password,
+  }) async {
+    if (_client == null) {
+      throw const AppException(
+        'Supabase is not configured. Provide SUPABASE_URL and SUPABASE_ANON_KEY.',
+      );
+    }
+
+    final response = await _client.auth.signUp(
+      email: email,
+      password: password,
+      data: <String, dynamic>{'full_name': fullName},
+    );
+    await _secureStorage.setGuestMode(false);
+    return response.session == null;
+  }
+
+  @override
+  Future<void> verifySignupOtp({
+    required String email,
+    required String code,
+  }) async {
+    if (_client == null) {
+      throw const AppException(
+        'Supabase is not configured. Provide SUPABASE_URL and SUPABASE_ANON_KEY.',
+      );
+    }
+    await _client.auth.verifyOTP(
+      email: email,
+      token: code,
+      type: OtpType.signup,
+    );
+    await _secureStorage.setGuestMode(false);
+  }
+
+  @override
+  Future<void> resendSignupOtp({required String email}) async {
+    if (_client == null) {
+      throw const AppException(
+        'Supabase is not configured. Provide SUPABASE_URL and SUPABASE_ANON_KEY.',
+      );
+    }
+    await _client.auth.resend(email: email, type: OtpType.signup);
+  }
+
+  @override
+  Future<void> requestPasswordResetOtp({required String email}) async {
+    if (_client == null) {
+      throw const AppException(
+        'Supabase is not configured. Provide SUPABASE_URL and SUPABASE_ANON_KEY.',
+      );
+    }
+    await _client.auth.signInWithOtp(email: email, shouldCreateUser: false);
+  }
+
+  @override
+  Future<void> verifyPasswordResetOtp({
+    required String email,
+    required String code,
+  }) async {
+    if (_client == null) {
+      throw const AppException(
+        'Supabase is not configured. Provide SUPABASE_URL and SUPABASE_ANON_KEY.',
+      );
+    }
+    await _client.auth.verifyOTP(
+      email: email,
+      token: code,
+      type: OtpType.email,
+    );
+    await _secureStorage.setGuestMode(false);
+  }
+
+  @override
+  Future<void> updatePassword({required String newPassword}) async {
+    if (_client == null) {
+      throw const AppException(
+        'Supabase is not configured. Provide SUPABASE_URL and SUPABASE_ANON_KEY.',
+      );
+    }
+    await _client.auth.updateUser(UserAttributes(password: newPassword));
+  }
+
+  @override
   Future<void> signInWithGoogle() async {
     if (_client == null) {
       throw const AppException(
         'Supabase is not configured. Provide SUPABASE_URL and SUPABASE_ANON_KEY.',
       );
     }
-    await _client.auth.signInWithOAuth(OAuthProvider.google);
+    await _client.auth.signInWithOAuth(
+      OAuthProvider.google,
+      redirectTo: kIsWeb ? null : AppConfig.oauthCallbackUrl,
+    );
     await _secureStorage.setGuestMode(false);
   }
 
