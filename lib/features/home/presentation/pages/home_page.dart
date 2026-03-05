@@ -171,7 +171,11 @@ class _HomePageState extends State<HomePage> {
                         showHeader: false,
                         child: AudioPage(),
                       ),
-                      const _TabPage(title: 'Profil', child: ProfilePage()),
+                      const _TabPage(
+                        title: 'Profil',
+                        showHeader: false,
+                        child: ProfilePage(),
+                      ),
                     ],
                   ),
                 ),

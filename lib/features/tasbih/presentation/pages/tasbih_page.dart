@@ -16,6 +16,7 @@ class TasbihPage extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final stateValue = ref.watch(tasbihStateProvider);
     final historyValue = ref.watch(tasbihHistoryProvider);
+    final isDark = Theme.of(context).brightness == Brightness.dark;
 
     return Scaffold(
       appBar: AppBar(title: const Text('Tasbih')),
@@ -81,6 +82,9 @@ class TasbihPage extends ConsumerWidget {
                         'Preset Target',
                         style: Theme.of(context).textTheme.titleSmall?.copyWith(
                           fontWeight: FontWeight.w800,
+                          color: isDark
+                              ? TawakkalColors.textPrimaryDark
+                              : TawakkalColors.textPrimaryLight,
                         ),
                       ),
                       const SizedBox(height: 8),
@@ -91,6 +95,7 @@ class TasbihPage extends ConsumerWidget {
                           _TargetChip(
                             label: '33',
                             selected: state.target == 33,
+                            isDark: isDark,
                             onTap: () => ref
                                 .read(tasbihStateProvider.notifier)
                                 .setTarget(33),
@@ -98,6 +103,7 @@ class TasbihPage extends ConsumerWidget {
                           _TargetChip(
                             label: '99',
                             selected: state.target == 99,
+                            isDark: isDark,
                             onTap: () => ref
                                 .read(tasbihStateProvider.notifier)
                                 .setTarget(99),
@@ -105,6 +111,7 @@ class TasbihPage extends ConsumerWidget {
                           _TargetChip(
                             label: '100',
                             selected: state.target == 100,
+                            isDark: isDark,
                             onTap: () => ref
                                 .read(tasbihStateProvider.notifier)
                                 .setTarget(100),
@@ -280,11 +287,13 @@ class _TargetChip extends StatelessWidget {
   const _TargetChip({
     required this.label,
     required this.selected,
+    required this.isDark,
     required this.onTap,
   });
 
   final String label;
   final bool selected;
+  final bool isDark;
   final VoidCallback onTap;
 
   @override
@@ -295,13 +304,17 @@ class _TargetChip extends StatelessWidget {
       onSelected: (_) => onTap(),
       selectedColor: TawakkalColors.primary.withValues(alpha: 0.2),
       labelStyle: Theme.of(context).textTheme.labelLarge?.copyWith(
-        color: selected ? TawakkalColors.primary : null,
+        color: selected
+            ? TawakkalColors.primary
+            : (isDark
+                  ? TawakkalColors.textPrimaryDark
+                  : TawakkalColors.textPrimaryLight),
         fontWeight: FontWeight.w700,
       ),
       side: BorderSide(
         color: selected
             ? TawakkalColors.primary.withValues(alpha: 0.5)
-            : const Color(0x25000000),
+            : (isDark ? const Color(0x26FFFFFF) : const Color(0x25000000)),
       ),
     );
   }

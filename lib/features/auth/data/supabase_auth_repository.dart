@@ -83,8 +83,25 @@ class SupabaseAuthRepository implements AuthRepository {
     final response = await _client.auth.signUp(
       email: email,
       password: password,
+      emailRedirectTo: kIsWeb ? null : AppConfig.oauthCallbackUrl,
       data: <String, dynamic>{'full_name': fullName},
     );
+
+    final responseEmail = response.user?.email?.trim().toLowerCase();
+    final requestedEmail = email.trim().toLowerCase();
+    final hasObfuscatedIdentities = response.user?.identities?.isEmpty ?? false;
+    final hasEmailMismatch =
+        responseEmail != null && responseEmail != requestedEmail;
+    final isLikelyRepeatedSignup =
+        response.session == null &&
+        (hasObfuscatedIdentities || hasEmailMismatch);
+
+    if (isLikelyRepeatedSignup) {
+      throw const AppException(
+        'This email is already registered. Please login instead.',
+      );
+    }
+
     await _secureStorage.setGuestMode(false);
     return response.session == null;
   }
@@ -114,7 +131,11 @@ class SupabaseAuthRepository implements AuthRepository {
         'Supabase is not configured. Provide SUPABASE_URL and SUPABASE_ANON_KEY.',
       );
     }
-    await _client.auth.resend(email: email, type: OtpType.signup);
+    await _client.auth.resend(
+      email: email,
+      type: OtpType.signup,
+      emailRedirectTo: kIsWeb ? null : AppConfig.oauthCallbackUrl,
+    );
   }
 
   @override
@@ -124,7 +145,11 @@ class SupabaseAuthRepository implements AuthRepository {
         'Supabase is not configured. Provide SUPABASE_URL and SUPABASE_ANON_KEY.',
       );
     }
-    await _client.auth.signInWithOtp(email: email, shouldCreateUser: false);
+    await _client.auth.signInWithOtp(
+      email: email,
+      shouldCreateUser: false,
+      emailRedirectTo: kIsWeb ? null : AppConfig.oauthCallbackUrl,
+    );
   }
 
   @override

@@ -725,6 +725,17 @@ class AppDatabase {
     );
   }
 
+  Future<int> countTasbihCompletions({String? dateKey}) async {
+    final db = await database;
+    final rows = await db.rawQuery(
+      dateKey == null
+          ? 'SELECT COUNT(*) AS count FROM tasbih_history'
+          : 'SELECT COUNT(*) AS count FROM tasbih_history WHERE date_key = ?',
+      dateKey == null ? const <Object?>[] : <Object?>[dateKey],
+    );
+    return Sqflite.firstIntValue(rows) ?? 0;
+  }
+
   Future<void> putQuizQuestionHistoryBatch({
     required String userLocalId,
     required int surahId,
@@ -814,6 +825,20 @@ class AppDatabase {
       'last_activity_at': DateTime.now().toIso8601String(),
       'sync_state': 'pending',
     }, conflictAlgorithm: ConflictAlgorithm.replace);
+  }
+
+  Future<int> countCompletedLearningUnits({required String userLocalId}) async {
+    final db = await database;
+    final rows = await db.rawQuery(
+      '''
+      SELECT COUNT(*) AS count
+      FROM learning_progress_local
+      WHERE user_local_id = ?
+        AND current_stage = ?
+      ''',
+      <Object?>[userLocalId, 'completed'],
+    );
+    return Sqflite.firstIntValue(rows) ?? 0;
   }
 
   Future<Map<String, Object?>> getOrCreateProfileProgress(
