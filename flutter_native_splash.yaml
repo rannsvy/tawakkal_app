@@ -6,6 +6,6 @@ flutter_native_splash:
   
   android_12:
     color: "#000000"
-    image: "assets/images/tawakkal_logo_new.png"
+    image: "assets/images/tawakkal_logo_android12_padded.png"
     color_dark: "#000000"
-    image_dark: "assets/images/tawakkal_logo_new.png"
+    image_dark: "assets/images/tawakkal_logo_android12_padded.png"
