@@ -15,20 +15,20 @@ class OnboardingSlide {
 const List<OnboardingSlide> onboardingSlides = [
   OnboardingSlide(
     illustrationAsset: 'assets/icons/studying_ob_page_1.svg',
-    title: 'Team Up For Success',
+    title: 'Learn, Read, And Listen',
     description:
-        'Get ready to unleash your potential and witness the power of teamwork as we embark on this extraordinary project.',
+        'Build your daily Quran habit by learning key lessons, reading verses, and listening to beautiful recitations in one place.',
   ),
   OnboardingSlide(
     illustrationAsset: 'assets/icons/brain_ob_page_2.svg',
-    title: 'User-Friendly at its Core',
+    title: 'Increase your general knowledge about the Quran',
     description:
-        'Discover the essence of user-friendliness as our interface empowers you with intuitive controls and effortless interactions.',
+        'Expand your understanding with AI guided insights, practical explanations, and bite-sized learning designed for steady progress.',
   ),
-    OnboardingSlide(
+  OnboardingSlide(
     illustrationAsset: 'assets/icons/ob_page_3.svg',
-    title: 'User-Friendly at its Core',
+    title: 'Share the "Torch" of knowledge with Others',
     description:
-        'Discover the essence of user-friendliness as our interface empowers you with intuitive controls and effortless interactions.',
+        'Pass on beneficial knowledge by sharing verses, reflections, and reminders with family and friends.',
   ),
 ];
