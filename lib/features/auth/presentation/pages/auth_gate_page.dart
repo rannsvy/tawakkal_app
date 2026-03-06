@@ -153,14 +153,14 @@ class _AuthGatePageState extends ConsumerState<AuthGatePage> {
                       key: const ValueKey('signup-code'),
                       title: 'Enter Verification Code',
                       subtitle:
-                          'We have sent a code to ${_maskEmail(_pendingEmail ?? '')}',
+                          'Check your email for a 6-digit code, or open the verification link. Sent to ${_maskEmail(_pendingEmail ?? '')}',
                       onVerify: _handleVerifySignupCode,
                     ),
                     _AuthStep.resetCode => _buildCodeCard(
                       key: const ValueKey('reset-code'),
                       title: 'Enter Reset Code',
                       subtitle:
-                          'We have sent a code to ${_maskEmail(_pendingEmail ?? '')}',
+                          'Check your email for a 6-digit code, or open the reset link. Sent to ${_maskEmail(_pendingEmail ?? '')}',
                       onVerify: _handleVerifyResetCode,
                     ),
                     _AuthStep.setNewPassword => _buildResetPasswordCard(),
@@ -1361,7 +1361,7 @@ class _AuthGatePageState extends ConsumerState<AuthGatePage> {
     }
     if (normalized.contains('email not confirmed') ||
         normalized.contains('email_not_confirmed')) {
-      return 'Email is not verified yet. Please check your code and verify first.';
+      return 'Email is not verified yet. Enter the 6-digit code from your email or open the verification link.';
     }
     if (normalized.contains('already registered') ||
         normalized.contains('already been registered')) {
@@ -1371,7 +1371,7 @@ class _AuthGatePageState extends ConsumerState<AuthGatePage> {
       return 'The verification code has expired. Please request a new one.';
     }
     if (normalized.contains('token') && normalized.contains('invalid')) {
-      return 'Invalid verification code. Please check and try again.';
+      return 'Invalid verification code. Please check and try again. If your email shows an 8-digit code, set Supabase Email OTP length to 6.';
     }
     if (normalized.contains('network') || normalized.contains('socket')) {
       return 'Network error. Please check your connection and try again.';

@@ -102,8 +102,11 @@ class SupabaseAuthRepository implements AuthRepository {
       );
     }
 
-    await _secureStorage.setGuestMode(false);
-    return response.session == null;
+    final requiresVerification = response.session == null;
+    if (!requiresVerification) {
+      await _secureStorage.setGuestMode(false);
+    }
+    return requiresVerification;
   }
 
   @override

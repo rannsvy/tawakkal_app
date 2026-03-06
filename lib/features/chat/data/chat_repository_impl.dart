@@ -29,7 +29,7 @@ class ChatRepositoryImpl implements ChatRepository {
     final endpoint = AppConfig.aiChatEndpoint.trim();
     if (endpoint.isEmpty) {
       throw const AppException(
-        'AI chat endpoint is not configured. Set AI_CHAT_ENDPOINT.',
+        'AI chat endpoint is not configured. Set CHAT_AI_TAWAKKAL_ENDPOINT or AI_CHAT_ENDPOINT.',
       );
     }
 
@@ -47,49 +47,64 @@ class ChatRepositoryImpl implements ChatRepository {
       'model': AppConfig.aiModel,
     };
 
-    final headers = <String, String>{'Content-Type': 'application/json'};
-    if (AppConfig.supabaseAnonKey.isNotEmpty) {
-      headers['apikey'] = AppConfig.supabaseAnonKey;
-    }
-
     final accessToken = _supabaseClient?.auth.currentSession?.accessToken;
-    if (accessToken != null && accessToken.isNotEmpty) {
-      headers['Authorization'] = 'Bearer $accessToken';
-    } else if (AppConfig.supabaseAnonKey.isNotEmpty) {
-      headers['Authorization'] = 'Bearer ${AppConfig.supabaseAnonKey}';
-    }
+    final useAnonFirst = _useAnonAuthFirstForEndpoint(endpoint);
+    final headers = _buildRequestHeaders(useSessionToken: !useAnonFirst);
 
     try {
-      final response = await _httpClient.postUri(
-        Uri.parse(endpoint),
-        data: requestBody,
-        options: Options(
-          headers: headers,
-          connectTimeout: const Duration(seconds: 20),
-          sendTimeout: const Duration(seconds: 20),
-          receiveTimeout: const Duration(seconds: 45),
-        ),
+      return await _sendChatRequest(
+        endpoint: endpoint,
+        requestBody: requestBody,
+        headers: headers,
       );
-
-      final responseMap = _coerceToMap(response.data);
-      final reply = responseMap?['reply'];
-      if (reply is String && reply.trim().isNotEmpty) {
-        return reply.trim();
-      }
-
-      final errorMessage = responseMap?['error'];
-      if (errorMessage is String && errorMessage.trim().isNotEmpty) {
-        throw AppException(errorMessage.trim());
-      }
-
-      throw const AppException('Invalid response from AI chat endpoint.');
     } on DioException catch (error) {
+      DioException finalError = error;
+
+      // For chat-ai-tawakkal we use anon-first to avoid known user-JWT 401 noise.
+      // For other endpoints, keep existing user-first retry strategy.
+      final shouldRetryAuthFallback =
+          !useAnonFirst &&
+          error.response?.statusCode == 401 &&
+          accessToken != null &&
+          accessToken.isNotEmpty &&
+          AppConfig.supabaseAnonKey.isNotEmpty;
+      if (shouldRetryAuthFallback) {
+        try {
+          // Refresh token first, because some 401s are stale session JWTs.
+          await _supabaseClient?.auth.refreshSession();
+          final refreshedUserHeaders = _buildRequestHeaders(
+            useSessionToken: true,
+          );
+          return await _sendChatRequest(
+            endpoint: endpoint,
+            requestBody: requestBody,
+            headers: refreshedUserHeaders,
+          );
+        } on DioException catch (refreshError) {
+          // If a fresh user JWT still fails, continue with anon fallback.
+          finalError = refreshError;
+        } catch (_) {
+          // Ignore refresh failures and continue with anon fallback.
+        }
+
+        try {
+          final fallbackHeaders = _buildRequestHeaders(useSessionToken: false);
+          return await _sendChatRequest(
+            endpoint: endpoint,
+            requestBody: requestBody,
+            headers: fallbackHeaders,
+          );
+        } on DioException catch (retryError) {
+          finalError = retryError;
+        }
+      }
+
       debugPrint(
         '[ChatRepository] AI chat request failed '
-        'status=${error.response?.statusCode} body=${_compactLog(error.response?.data)}',
+        'status=${finalError.response?.statusCode} body=${_compactLog(finalError.response?.data)}',
       );
 
-      final responseMap = _coerceToMap(error.response?.data);
+      final responseMap = _coerceToMap(finalError.response?.data);
       final responseError = responseMap?['error'];
       if (responseError is String && responseError.trim().isNotEmpty) {
         throw AppException(responseError.trim());
@@ -105,6 +120,64 @@ class ChatRepositoryImpl implements ChatRepository {
       throw const AppException(
         'Unexpected AI chat error occurred. Please try again.',
       );
+    }
+  }
+
+  Future<String> _sendChatRequest({
+    required String endpoint,
+    required Map<String, dynamic> requestBody,
+    required Map<String, String> headers,
+  }) async {
+    final response = await _httpClient.postUri(
+      Uri.parse(endpoint),
+      data: requestBody,
+      options: Options(
+        headers: headers,
+        connectTimeout: const Duration(seconds: 20),
+        sendTimeout: const Duration(seconds: 20),
+        receiveTimeout: const Duration(seconds: 45),
+      ),
+    );
+
+    final responseMap = _coerceToMap(response.data);
+    final reply = responseMap?['reply'];
+    if (reply is String && reply.trim().isNotEmpty) {
+      return reply.trim();
+    }
+
+    final errorMessage = responseMap?['error'];
+    if (errorMessage is String && errorMessage.trim().isNotEmpty) {
+      throw AppException(errorMessage.trim());
+    }
+
+    throw const AppException('Invalid response from AI chat endpoint.');
+  }
+
+  Map<String, String> _buildRequestHeaders({required bool useSessionToken}) {
+    final headers = <String, String>{'Content-Type': 'application/json'};
+    if (AppConfig.supabaseAnonKey.isNotEmpty) {
+      headers['apikey'] = AppConfig.supabaseAnonKey;
+    }
+
+    final accessToken = _supabaseClient?.auth.currentSession?.accessToken;
+    if (useSessionToken && accessToken != null && accessToken.isNotEmpty) {
+      headers['Authorization'] = 'Bearer $accessToken';
+    } else if (AppConfig.supabaseAnonKey.isNotEmpty) {
+      headers['Authorization'] = 'Bearer ${AppConfig.supabaseAnonKey}';
+    }
+    return headers;
+  }
+
+  bool _useAnonAuthFirstForEndpoint(String endpoint) {
+    try {
+      final uri = Uri.parse(endpoint);
+      final segments = uri.pathSegments.where((part) => part.isNotEmpty);
+      if (segments.isEmpty) {
+        return false;
+      }
+      return segments.last.toLowerCase() == 'chat-ai-tawakkal';
+    } catch (_) {
+      return false;
     }
   }
 

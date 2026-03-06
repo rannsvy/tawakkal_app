@@ -123,6 +123,7 @@ supabase functions deploy chat-ai --project-ref YOUR_PROJECT_REF
 ```
 
 If you deploy chat under a different function name, update `CHAT_AI_TAWAKKAL_ENDPOINT` accordingly.
+For the default `chat-ai-tawakkal` deployment, the app intentionally uses anon auth first to avoid known user-JWT `401 Invalid JWT` noise on some Edge Function auth configurations.
 
 ## Quality Checks
 
