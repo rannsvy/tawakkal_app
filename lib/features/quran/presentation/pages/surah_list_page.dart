@@ -1,5 +1,3 @@
-import 'dart:math' as math;
-
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -7,6 +5,7 @@ import 'package:go_router/go_router.dart';
 import '../../../../app/theme/colors.dart';
 import '../../../../app/theme/typography.dart';
 import '../../../../shared/widgets/async_state_view.dart';
+import '../../../../shared/widgets/diamond_index_badge.dart';
 import '../../../../shared/widgets/rich_info_card.dart';
 import '../../../../shared/widgets/rich_page_background.dart';
 import '../../domain/entities/surah.dart';
@@ -474,7 +473,7 @@ class _SurahIndexCard extends StatelessWidget {
             ),
           Row(
             children: [
-              _DiamondIndexBadge(
+              DiamondIndexBadge(
                 number: surah.surahId,
                 highlighted: hasBookmark,
               ),
@@ -580,7 +579,7 @@ class _JuzIndexCard extends StatelessWidget {
       onTap: onTap,
       child: Row(
         children: [
-          _DiamondIndexBadge(
+          DiamondIndexBadge(
             number: item.boundary.juzNumber,
             highlighted: false,
           ),
@@ -654,7 +653,7 @@ class _BookmarkSurahCard extends StatelessWidget {
       onTap: onTap,
       child: Row(
         children: [
-          _DiamondIndexBadge(number: group.surah.surahId, highlighted: true),
+          DiamondIndexBadge(number: group.surah.surahId, highlighted: true),
           const SizedBox(width: 12),
           Expanded(
             child: Column(
@@ -721,51 +720,6 @@ class _BookmarkSurahCard extends StatelessWidget {
                 ),
               ),
             ],
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _DiamondIndexBadge extends StatelessWidget {
-  const _DiamondIndexBadge({required this.number, required this.highlighted});
-
-  final int number;
-  final bool highlighted;
-
-  @override
-  Widget build(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    final baseColor = highlighted
-        ? TawakkalColors.accentGold
-        : TawakkalColors.primary;
-    return SizedBox(
-      width: 38,
-      height: 38,
-      child: Stack(
-        alignment: Alignment.center,
-        children: [
-          Transform.rotate(
-            angle: math.pi / 4,
-            child: Container(
-              width: 28,
-              height: 28,
-              decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(4),
-                color: baseColor.withValues(alpha: isDark ? 0.16 : 0.12),
-                border: Border.all(
-                  color: baseColor.withValues(alpha: isDark ? 0.45 : 0.28),
-                ),
-              ),
-            ),
-          ),
-          Text(
-            '$number',
-            style: Theme.of(context).textTheme.labelMedium?.copyWith(
-              color: baseColor,
-              fontWeight: FontWeight.w800,
-            ),
           ),
         ],
       ),

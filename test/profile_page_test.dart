@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:go_router/go_router.dart';
+import 'package:tawakkal_app/features/auth/domain/auth_user.dart';
+import 'package:tawakkal_app/features/auth/presentation/providers/auth_providers.dart';
 import 'package:tawakkal_app/features/profile/domain/entities/profile_overview.dart';
 import 'package:tawakkal_app/features/profile/domain/entities/reward_milestone.dart';
 import 'package:tawakkal_app/features/profile/presentation/pages/profile_page.dart';
@@ -67,6 +70,42 @@ void main() {
     expect(find.text('Istiqamah Dasar'), findsWidgets);
     expect(find.textContaining('Progres:'), findsOneWidget);
   });
+
+  testWidgets('sign out button redirects to auth page', (tester) async {
+    _setPhoneViewport(tester);
+
+    final router = GoRouter(
+      routes: [
+        GoRoute(
+          path: '/',
+          builder: (context, state) => const Scaffold(body: ProfilePage()),
+        ),
+        GoRoute(
+          path: '/auth',
+          builder: (context, state) => const Scaffold(body: Text('auth-page')),
+        ),
+      ],
+    );
+    addTearDown(router.dispose);
+
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          profileOverviewProvider.overrideWith((ref) async => _fakeOverview),
+          authControllerProvider.overrideWith(_FakeAuthController.new),
+        ],
+        child: MaterialApp.router(routerConfig: router),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.tap(
+      find.byKey(const ValueKey<String>('profile-signout-button')),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('auth-page'), findsOneWidget);
+  });
 }
 
 void _setPhoneViewport(WidgetTester tester) {
@@ -128,3 +167,20 @@ const ProfileOverview _fakeOverview = ProfileOverview(
     ),
   ],
 );
+
+class _FakeAuthController extends AuthController {
+  @override
+  Future<TawakkalUser?> build() async {
+    return const TawakkalUser(
+      id: 'u1',
+      displayName: 'Reo Tawakkal',
+      isGuest: false,
+      email: 'reo@example.com',
+    );
+  }
+
+  @override
+  Future<void> signOut() async {
+    state = const AsyncData(null);
+  }
+}

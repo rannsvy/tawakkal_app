@@ -6,6 +6,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../../../app/theme/colors.dart';
 import '../../../../shared/widgets/async_state_view.dart';
+import '../../../../shared/widgets/diamond_index_badge.dart';
 import '../../../../shared/widgets/rich_info_card.dart';
 import '../../../../shared/widgets/rich_page_background.dart';
 import '../../../../shared/widgets/rich_section_title.dart';
@@ -416,22 +417,7 @@ class _SurahQuizTile extends StatelessWidget {
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
       child: Row(
         children: [
-          Container(
-            width: 36,
-            height: 36,
-            alignment: Alignment.center,
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              color: TawakkalColors.primary.withValues(alpha: 0.16),
-            ),
-            child: Text(
-              '${surah.surahId}',
-              style: Theme.of(context).textTheme.labelMedium?.copyWith(
-                color: TawakkalColors.primary,
-                fontWeight: FontWeight.w800,
-              ),
-            ),
-          ),
+          DiamondIndexBadge(number: surah.surahId, size: 36),
           const SizedBox(width: 12),
           Expanded(
             child: Column(

@@ -6,6 +6,7 @@ import '../../../../app/theme/typography.dart';
 import '../../../../core/config/app_config.dart';
 import '../../../../core/constants/reciters.dart';
 import '../../../../shared/widgets/async_state_view.dart';
+import '../../../../shared/widgets/diamond_index_badge.dart';
 import '../../../../shared/widgets/rich_info_card.dart';
 import '../../../../shared/widgets/rich_page_background.dart';
 import '../../../../shared/widgets/rich_section_title.dart';
@@ -22,8 +23,11 @@ class AudioPage extends ConsumerStatefulWidget {
 }
 
 class _AudioPageState extends ConsumerState<AudioPage> {
+  final TextEditingController _searchController = TextEditingController();
   late String _selectedReciter;
   bool _isQariExpanded = false;
+  String _query = '';
+  bool _showAllSurahs = false;
   final Map<int, double> _downloadProgress = <int, double>{};
   final Set<int> _downloading = <int>{};
   final Set<int> _removing = <int>{};
@@ -32,6 +36,17 @@ class _AudioPageState extends ConsumerState<AudioPage> {
   void initState() {
     super.initState();
     _selectedReciter = AppConfig.fallbackReciterKey;
+    _searchController.addListener(() {
+      setState(() {
+        _query = _searchController.text.trim();
+      });
+    });
+  }
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
   }
 
   @override
@@ -60,6 +75,7 @@ class _AudioPageState extends ConsumerState<AudioPage> {
                 setState(() {
                   _selectedReciter = value;
                   _isQariExpanded = false;
+                  _showAllSurahs = false;
                   _downloadProgress.clear();
                   _downloading.clear();
                   _removing.clear();
@@ -67,18 +83,48 @@ class _AudioPageState extends ConsumerState<AudioPage> {
               },
             ),
           ),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
+            child: _AudioSurahSearchField(
+              controller: _searchController,
+              query: _query,
+              onClear: _searchController.clear,
+            ),
+          ),
           Expanded(
             child: AsyncStateView(
               value: surahsState,
               onRetry: () => ref.invalidate(surahListProvider),
               builder: (surahs) {
+                final filteredSurahs = _filterSurahs(surahs, _query);
+                if (filteredSurahs.isEmpty) {
+                  return const _AudioSearchEmptyState();
+                }
+
+                final isSearching = _query.isNotEmpty;
+                final showToggle = !isSearching && filteredSurahs.length > 10;
+                final visibleSurahs = (isSearching || _showAllSurahs)
+                    ? filteredSurahs
+                    : filteredSurahs.take(10).toList(growable: false);
+
                 return ListView.separated(
                   padding: const EdgeInsets.fromLTRB(16, 4, 16, 24),
-                  itemCount: surahs.length,
+                  itemCount: visibleSurahs.length + (showToggle ? 1 : 0),
                   separatorBuilder: (context, index) =>
                       const SizedBox(height: 10),
                   itemBuilder: (context, index) {
-                    final surah = surahs[index];
+                    if (showToggle && index == visibleSurahs.length) {
+                      return _AudioSurahListToggle(
+                        isExpanded: _showAllSurahs,
+                        onToggle: () {
+                          setState(() {
+                            _showAllSurahs = !_showAllSurahs;
+                          });
+                        },
+                      );
+                    }
+
+                    final surah = visibleSurahs[index];
                     final url = surah.audioFull[_selectedReciter];
                     final isDownloaded = downloadedIds.contains(surah.surahId);
                     final isDownloading = _downloading.contains(surah.surahId);
@@ -98,7 +144,7 @@ class _AudioPageState extends ConsumerState<AudioPage> {
                               ref
                                   .read(audioActionsProvider)
                                   .playSurahQueue(
-                                    surahs: surahs,
+                                    surahs: filteredSurahs,
                                     reciterId: _selectedReciter,
                                     reciterName: reciterName,
                                     startSurahId: surah.surahId,
@@ -138,6 +184,22 @@ class _AudioPageState extends ConsumerState<AudioPage> {
         ],
       ),
     );
+  }
+
+  List<SurahSummary> _filterSurahs(List<SurahSummary> surahs, String query) {
+    if (query.isEmpty) {
+      return surahs;
+    }
+
+    final lowerQuery = query.toLowerCase();
+    return surahs
+        .where((surah) {
+          return surah.surahId.toString().contains(lowerQuery) ||
+              surah.nameLatin.toLowerCase().contains(lowerQuery) ||
+              surah.meaning.toLowerCase().contains(lowerQuery) ||
+              surah.nameArabic.contains(query);
+        })
+        .toList(growable: false);
   }
 
   Future<void> _confirmRemoveDownload({
@@ -258,6 +320,149 @@ class _AudioPageState extends ConsumerState<AudioPage> {
         SnackBar(content: Text('Gagal mengunduh audio: $error')),
       );
     }
+  }
+}
+
+class _AudioSurahSearchField extends StatelessWidget {
+  const _AudioSurahSearchField({
+    required this.controller,
+    required this.query,
+    required this.onClear,
+  });
+
+  final TextEditingController controller;
+  final String query;
+  final VoidCallback onClear;
+
+  @override
+  Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    return TextField(
+      controller: controller,
+      textInputAction: TextInputAction.search,
+      decoration: InputDecoration(
+        hintText: 'Cari surah (nama, arti, Arab, nomor)...',
+        prefixIcon: const Icon(Icons.search_rounded),
+        suffixIcon: query.isEmpty
+            ? null
+            : IconButton(
+                onPressed: onClear,
+                icon: const Icon(Icons.close_rounded),
+                tooltip: 'Hapus pencarian',
+              ),
+        filled: true,
+        fillColor: isDark
+            ? TawakkalColors.surfaceDark.withValues(alpha: 0.65)
+            : TawakkalColors.surfaceLight,
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(16),
+          borderSide: BorderSide.none,
+        ),
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(16),
+          borderSide: BorderSide(
+            color: isDark ? const Color(0x1EFFFFFF) : const Color(0x12000000),
+          ),
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(16),
+          borderSide: BorderSide(
+            color: TawakkalColors.primary.withValues(alpha: 0.45),
+            width: 1.2,
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _AudioSurahListToggle extends StatelessWidget {
+  const _AudioSurahListToggle({
+    required this.isExpanded,
+    required this.onToggle,
+  });
+
+  final bool isExpanded;
+  final VoidCallback onToggle;
+
+  @override
+  Widget build(BuildContext context) {
+    return RichInfoCard(
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+      child: Align(
+        alignment: Alignment.center,
+        child: TextButton(
+          onPressed: onToggle,
+          child: Text(
+            isExpanded ? 'Tampilkan lebih sedikit' : 'Tampilkan semua surah',
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _AudioSearchEmptyState extends StatelessWidget {
+  const _AudioSearchEmptyState();
+
+  @override
+  Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final titleColor = isDark
+        ? TawakkalColors.textPrimaryDark
+        : TawakkalColors.textPrimaryLight;
+    final subtitleColor = isDark
+        ? TawakkalColors.textSecondary
+        : TawakkalColors.textPrimaryLight.withValues(alpha: 0.68);
+
+    return ListView(
+      physics: const ClampingScrollPhysics(
+        parent: AlwaysScrollableScrollPhysics(),
+      ),
+      padding: const EdgeInsets.fromLTRB(16, 4, 16, 24),
+      children: [
+        RichInfoCard(
+          padding: const EdgeInsets.all(14),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Container(
+                width: 34,
+                height: 34,
+                alignment: Alignment.center,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: TawakkalColors.primary.withValues(alpha: 0.12),
+                ),
+                child: const Icon(Icons.search_off_rounded, size: 18),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Hasil tidak ditemukan',
+                      style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                        color: titleColor,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      'Coba kata kunci lain untuk surah.',
+                      style: Theme.of(
+                        context,
+                      ).textTheme.bodySmall?.copyWith(color: subtitleColor),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
   }
 }
 
@@ -581,29 +786,7 @@ class _AudioSurahTile extends StatelessWidget {
       onTap: onPlay,
       child: Row(
         children: [
-          Container(
-            width: 38,
-            height: 38,
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              color: TawakkalColors.primary.withValues(
-                alpha: isDark ? 0.22 : 0.14,
-              ),
-              border: Border.all(
-                color: TawakkalColors.primary.withValues(
-                  alpha: isDark ? 0.4 : 0.24,
-                ),
-              ),
-            ),
-            alignment: Alignment.center,
-            child: Text(
-              '${surah.surahId}',
-              style: Theme.of(context).textTheme.labelMedium?.copyWith(
-                color: TawakkalColors.primary,
-                fontWeight: FontWeight.w800,
-              ),
-            ),
-          ),
+          DiamondIndexBadge(number: surah.surahId),
           const SizedBox(width: 12),
           Expanded(
             child: Column(

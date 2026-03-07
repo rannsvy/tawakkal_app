@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 
 import '../../../../app/theme/colors.dart';
+import '../../../auth/presentation/providers/auth_providers.dart';
 import '../../../../shared/widgets/async_state_view.dart';
 import '../../../../shared/widgets/rich_info_card.dart';
 import '../../../../shared/widgets/rich_page_background.dart';
@@ -28,7 +30,10 @@ class ProfilePage extends ConsumerWidget {
             children: [
               const _ProfileHeader(),
               const SizedBox(height: 14),
-              _ProfileIdentityCard(overview: overview),
+              _ProfileIdentityCard(
+                overview: overview,
+                onSignOut: () => _handleSignOut(context, ref),
+              ),
               const SizedBox(height: 18),
               const _ProfileSectionLabel('PROGRES SAAT INI'),
               const SizedBox(height: 8),
@@ -42,6 +47,22 @@ class ProfilePage extends ConsumerWidget {
         },
       ),
     );
+  }
+
+  Future<void> _handleSignOut(BuildContext context, WidgetRef ref) async {
+    final messenger = ScaffoldMessenger.of(context);
+    try {
+      await ref.read(authControllerProvider.notifier).signOut();
+      if (!context.mounted) {
+        return;
+      }
+      context.go('/auth');
+    } catch (error) {
+      if (!context.mounted) {
+        return;
+      }
+      messenger.showSnackBar(SnackBar(content: Text('Gagal sign out: $error')));
+    }
   }
 }
 
@@ -75,9 +96,10 @@ class _ProfileHeader extends StatelessWidget {
 }
 
 class _ProfileIdentityCard extends StatelessWidget {
-  const _ProfileIdentityCard({required this.overview});
+  const _ProfileIdentityCard({required this.overview, required this.onSignOut});
 
   final ProfileOverview overview;
+  final Future<void> Function() onSignOut;
 
   @override
   Widget build(BuildContext context) {
@@ -146,6 +168,36 @@ class _ProfileIdentityCard extends StatelessWidget {
                         label: 'Guest',
                       ),
                   ],
+                ),
+                const SizedBox(height: 10),
+                Align(
+                  alignment: Alignment.centerLeft,
+                  child: OutlinedButton.icon(
+                    key: const ValueKey<String>('profile-signout-button'),
+                    onPressed: () {
+                      onSignOut();
+                    },
+                    icon: const Icon(Icons.logout_rounded, size: 18),
+                    label: const Text('Sign out'),
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: isDark
+                          ? TawakkalColors.textPrimaryDark
+                          : TawakkalColors.primaryDark,
+                      side: BorderSide(
+                        color: isDark
+                            ? const Color(0x26FFFFFF)
+                            : TawakkalColors.primary.withValues(alpha: 0.34),
+                      ),
+                      backgroundColor: isDark
+                          ? Colors.white.withValues(alpha: 0.04)
+                          : Colors.white.withValues(alpha: 0.68),
+                      visualDensity: VisualDensity.compact,
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 12,
+                        vertical: 10,
+                      ),
+                    ),
+                  ),
                 ),
               ],
             ),
