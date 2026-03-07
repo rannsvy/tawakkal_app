@@ -101,6 +101,9 @@ Run using the env file:
 flutter run --dart-define-from-file=.env
 ```
 
+Alternative (no `--dart-define`): copy `.env` into `assets/env/runtime.env`.
+The app will load this asset at startup as a runtime fallback.
+
 Build using the env file:
 
 ```bash

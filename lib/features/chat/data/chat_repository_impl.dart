@@ -106,6 +106,14 @@ class ChatRepositoryImpl implements ChatRepository {
 
       final responseMap = _coerceToMap(finalError.response?.data);
       final responseError = responseMap?['error'];
+      final upstreamDetail = _extractUpstreamDetailMessage(
+        responseMap?['details'],
+      );
+      if (upstreamDetail != null && upstreamDetail.contains('timeout')) {
+        throw const AppException(
+          'Tawakkal AI is busy right now. Please try again in a moment.',
+        );
+      }
       if (responseError is String && responseError.trim().isNotEmpty) {
         throw AppException(responseError.trim());
       }
@@ -135,7 +143,7 @@ class ChatRepositoryImpl implements ChatRepository {
         headers: headers,
         connectTimeout: const Duration(seconds: 20),
         sendTimeout: const Duration(seconds: 20),
-        receiveTimeout: const Duration(seconds: 45),
+        receiveTimeout: const Duration(seconds: 70),
       ),
     );
 
@@ -224,5 +232,28 @@ class ChatRepositoryImpl implements ChatRepository {
       return value;
     }
     return '${value.substring(0, 900)}...';
+  }
+
+  String? _extractUpstreamDetailMessage(Object? details) {
+    if (details is String && details.trim().isNotEmpty) {
+      return details.trim().toLowerCase();
+    }
+    if (details is Map) {
+      final normalized = details.map(
+        (key, value) => MapEntry(key.toString(), value),
+      );
+      final nested = normalized['error'];
+      if (nested is Map) {
+        final nestedMessage = nested['message'];
+        if (nestedMessage is String && nestedMessage.trim().isNotEmpty) {
+          return nestedMessage.trim().toLowerCase();
+        }
+      }
+      final message = normalized['message'];
+      if (message is String && message.trim().isNotEmpty) {
+        return message.trim().toLowerCase();
+      }
+    }
+    return null;
   }
 }

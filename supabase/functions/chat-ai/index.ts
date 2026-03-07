@@ -2,6 +2,10 @@ import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 
 const defaultNimBaseUrl = "https://integrate.api.nvidia.com/v1";
 const defaultNimModel = "z-ai/glm4.7";
+const maxUserMessageChars = 1800;
+const maxHistoryMessageChars = 900;
+const maxAyahTranslationsChars = 2600;
+const maxTafsirSnippetsChars = 2200;
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -73,10 +77,11 @@ Deno.serve(async (req: Request) => {
     return jsonResponse({ error: "Invalid provider. Allowed values: nvidia." }, 400);
   }
 
-  const userMessage = asString(body.message).trim();
-  if (!userMessage) {
+  const userMessageRaw = asString(body.message).trim();
+  if (!userMessageRaw) {
     return jsonResponse({ error: "Missing or empty 'message' field." }, 400);
   }
+  const userMessage = clampText(userMessageRaw, maxUserMessageChars);
 
   const config = loadNimConfig();
   if (!config.apiKey) {
@@ -107,7 +112,7 @@ Deno.serve(async (req: Request) => {
   messages.push({ role: "user", content: userMessage });
 
   try {
-    const completion = await requestChatCompletion({
+    const completion = await requestChatCompletionWithFallback({
       baseUrl: config.baseUrl,
       apiKey: config.apiKey,
       model,
@@ -121,12 +126,20 @@ Deno.serve(async (req: Request) => {
     });
 
     if (!completion.response.ok) {
+      const upstreamStatus = completion.response.status;
+      const upstreamCode = extractErrorCode(completion.errorBody);
+      const timeoutDetected = upstreamStatus === 408 || upstreamCode === 408;
+      const mappedStatus = timeoutDetected ? 504 : upstreamStatus || 502;
+      const mappedError =
+        timeoutDetected
+          ? "AI upstream timeout."
+          : "AI upstream request failed.";
       return jsonResponse(
         {
-          error: "AI upstream request failed.",
+          error: mappedError,
           details: completion.errorBody ?? null,
         },
-        502,
+        mappedStatus,
       );
     }
 
@@ -141,13 +154,14 @@ Deno.serve(async (req: Request) => {
       return jsonResponse({ error: "AI response was empty after sanitization." }, 502);
     }
 
-    const modelUsed = asString(responseBody?.model) || model;
+    const modelUsed = asString(responseBody?.model) || completion.modelUsed;
     return jsonResponse(
       {
         reply,
         model: modelUsed,
         meta: {
           provider_used: provider ?? "nvidia",
+          completion_attempt: completion.attempt,
           latency_ms: Date.now() - startedAt,
           history_count: history.length,
           context_attached: surahContext !== null,
@@ -168,17 +182,26 @@ Deno.serve(async (req: Request) => {
 });
 
 function buildSurahContextInstruction(context: SurahContext): string {
+  const safeAyahTranslations = clampText(
+    context.ayah_translations ?? "",
+    maxAyahTranslationsChars,
+  );
+  const safeTafsirSnippets = clampText(
+    context.tafsir_snippets ?? "",
+    maxTafsirSnippetsChars,
+  );
+
   const parts = [
     `Current Surah Context:`,
     `- Surah ID: ${context.surah_id}`,
     `- Surah Name: ${context.surah_name}`,
   ];
 
-  if (context.ayah_translations && context.ayah_translations.trim().length > 0) {
-    parts.push(`\nAyah Translations:\n${context.ayah_translations.trim()}`);
+  if (safeAyahTranslations.length > 0) {
+    parts.push(`\nAyah Translations:\n${safeAyahTranslations}`);
   }
-  if (context.tafsir_snippets && context.tafsir_snippets.trim().length > 0) {
-    parts.push(`\nTafsir Snippets:\n${context.tafsir_snippets.trim()}`);
+  if (safeTafsirSnippets.length > 0) {
+    parts.push(`\nTafsir Snippets:\n${safeTafsirSnippets}`);
   }
 
   return parts.join("\n");
@@ -197,13 +220,13 @@ function loadNimConfig(): NimConfig {
     defaultModel,
     requestTimeoutMs: parseIntWithBounds(
       Deno.env.get("NVIDIA_NIM_REQUEST_TIMEOUT_MS"),
-      28000,
+      45000,
       3000,
       60000,
     ),
     maxTokens: parseIntWithBounds(
       Deno.env.get("NVIDIA_NIM_MAX_TOKENS"),
-      1024,
+      768,
       128,
       4096,
     ),
@@ -225,7 +248,10 @@ function parseConversationHistory(input: unknown): ConversationMessage[] {
 
   for (const row of rows) {
     const role = asString(row.role).toLowerCase();
-    const content = asString(row.content).trim();
+    const content = clampText(
+      asString(row.content),
+      maxHistoryMessageChars,
+    ).trim();
     if (!content) {
       continue;
     }
@@ -275,6 +301,70 @@ function parseProvider(input: unknown): Provider | null | "invalid" {
   return "invalid";
 }
 
+type CompletionAttempt = "primary" | "fallback";
+type CompletionResult = {
+  response: Response;
+  errorBody?: unknown;
+  modelUsed: string;
+  attempt: CompletionAttempt;
+};
+
+async function requestChatCompletionWithFallback(params: {
+  baseUrl: string;
+  apiKey: string;
+  model: string;
+  messages: ConversationMessage[];
+  timeoutMs: number;
+  maxTokens: number;
+  temperature: number;
+  topP: number;
+  enableThinking: boolean;
+  clearThinking: boolean;
+}): Promise<CompletionResult> {
+  const primaryTimeoutMs = Math.max(
+    10000,
+    Math.min(params.timeoutMs, 22000),
+  );
+
+  const primary = await requestChatCompletion({
+    ...params,
+    timeoutMs: primaryTimeoutMs,
+  });
+  if (primary.response.ok || !shouldRetryUpstream(primary.response.status, primary.errorBody)) {
+    return {
+      ...primary,
+      modelUsed: params.model,
+      attempt: "primary",
+    };
+  }
+
+  const fallbackModel = resolveModel(
+    Deno.env.get("NVIDIA_NIM_FALLBACK_MODEL") || "",
+    params.model,
+  );
+  const fallbackTimeoutMs = Math.max(
+    8000,
+    Math.min(18000, params.timeoutMs - primaryTimeoutMs + 6000),
+  );
+  const fallback = await requestChatCompletion({
+    ...params,
+    model: fallbackModel,
+    messages: buildFallbackMessages(params.messages),
+    timeoutMs: fallbackTimeoutMs,
+    maxTokens: Math.max(192, Math.min(384, Math.floor(params.maxTokens * 0.5))),
+    temperature: Math.min(params.temperature, 0.3),
+    topP: Math.min(params.topP, 0.85),
+    enableThinking: false,
+    clearThinking: true,
+  });
+
+  return {
+    ...fallback,
+    modelUsed: fallbackModel,
+    attempt: "fallback",
+  };
+}
+
 async function requestChatCompletion(params: {
   baseUrl: string;
   apiKey: string;
@@ -297,11 +387,13 @@ async function requestChatCompletion(params: {
     max_tokens: params.maxTokens,
     temperature: params.temperature,
     top_p: params.topP,
-    chat_template_kwargs: {
+  };
+  if (params.enableThinking) {
+    payload.chat_template_kwargs = {
       enable_thinking: params.enableThinking,
       clear_thinking: params.clearThinking,
-    },
-  };
+    };
+  }
 
   try {
     const response = await fetch(`${params.baseUrl}/chat/completions`, {
@@ -478,6 +570,53 @@ function isAbortError(error: unknown): boolean {
     return error.name === "AbortError";
   }
   return String(error).toLowerCase().includes("abort");
+}
+
+function buildFallbackMessages(messages: ConversationMessage[]): ConversationMessage[] {
+  if (messages.length <= 3) {
+    return messages;
+  }
+
+  const systemMessages = messages.filter((entry) => entry.role === "system").slice(0, 2);
+  const dialogue = messages.filter((entry) => entry.role !== "system");
+  const tail = dialogue.slice(-3);
+  return [...systemMessages, ...tail];
+}
+
+function shouldRetryUpstream(statusCode: number, errorBody?: unknown): boolean {
+  if ([408, 429, 500, 502, 503, 504].includes(statusCode)) {
+    return true;
+  }
+  const codeFromBody = extractErrorCode(errorBody);
+  return codeFromBody !== null && [408, 429, 500, 502, 503, 504].includes(codeFromBody);
+}
+
+function extractErrorCode(errorBody: unknown): number | null {
+  if (!isRecord(errorBody)) {
+    return null;
+  }
+  const nested = errorBody.error;
+  if (isRecord(nested)) {
+    const rawCode = nested.code;
+    if (typeof rawCode === "number" && Number.isFinite(rawCode)) {
+      return Math.trunc(rawCode);
+    }
+    if (typeof rawCode === "string") {
+      const parsed = Number.parseInt(rawCode, 10);
+      if (Number.isFinite(parsed)) {
+        return parsed;
+      }
+    }
+  }
+  return null;
+}
+
+function clampText(value: string, maxChars: number): string {
+  const normalized = value.replace(/\s+/g, " ").trim();
+  if (normalized.length <= maxChars) {
+    return normalized;
+  }
+  return `${normalized.slice(0, maxChars)}...`;
 }
 
 async function safeJson<T>(response: Response): Promise<T | null> {

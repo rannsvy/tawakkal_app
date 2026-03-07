@@ -1,0 +1,9 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(dir C:\\\\tawakkal_app\\\\lib\\\\features\\\\chat:*)",
+      "Bash(dir C:\\\\tawakkal_app\\\\assets\\\\env:*)",
+      "Bash(dir C:\\\\tawakkal_app\\\\supabase\\\\functions\\\\chat-ai-tawakkal:*)"
+    ]
+  }
+}

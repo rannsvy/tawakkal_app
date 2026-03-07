@@ -47,12 +47,20 @@ Optional aliases:
 Recommended settings:
 - `NVIDIA_NIM_BASE_URL` (default `https://integrate.api.nvidia.com/v1`)
 - `AI_MODEL` (default `z-ai/glm4.7`)
-- `NVIDIA_NIM_REQUEST_TIMEOUT_MS` (default `28000`)
-- `NVIDIA_NIM_MAX_TOKENS` (default `1024`)
+- `NVIDIA_NIM_FALLBACK_MODEL` (optional, retries once on upstream timeout/5xx)
+- `NVIDIA_NIM_REQUEST_TIMEOUT_MS` (default `45000`)
+- `NVIDIA_NIM_MAX_TOKENS` (default `768`)
 - `NVIDIA_NIM_TEMPERATURE` (default `0.4`)
 - `NVIDIA_NIM_TOP_P` (default `0.9`)
 - `NVIDIA_NIM_ENABLE_THINKING` (default `false`)
 - `NVIDIA_NIM_CLEAR_THINKING` (default `true`)
+
+## 502 troubleshooting
+- If logs show execution around `28000 ms`, requests are timing out upstream.
+- Set `NVIDIA_NIM_REQUEST_TIMEOUT_MS=45000` and reduce `NVIDIA_NIM_MAX_TOKENS` to `512-768`.
+- Set `NVIDIA_NIM_FALLBACK_MODEL` to a faster model available in your NVIDIA account.
+- Upstream timeout now returns `504` (`AI upstream timeout.`) for clearer diagnosis.
+- Redeploy the function after changing code/secrets.
 
 ## Deploy
 ```bash
