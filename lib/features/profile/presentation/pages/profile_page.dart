@@ -170,8 +170,8 @@ class _ProfileIdentityCard extends StatelessWidget {
                   ],
                 ),
                 const SizedBox(height: 10),
-                Align(
-                  alignment: Alignment.centerLeft,
+                SizedBox(
+                  width: double.infinity,
                   child: OutlinedButton.icon(
                     key: const ValueKey<String>('profile-signout-button'),
                     onPressed: () {
