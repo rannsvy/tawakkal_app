@@ -103,4 +103,39 @@ Tentu, berikut adalah tabel biografi singkat Umar bin Khattab:
     expect(tester.takeException(), isNull);
     expect(find.textContaining('Ringkasan'), findsOneWidget);
   });
+
+  testWidgets('assistant loose pipe sections render as readable rows', (
+    tester,
+  ) async {
+    const content = '''
+| Keluarga | Istri terkenal: Atikah binti Zaid. Anak terkenal: Abdullah bin Umar. |
+| Peran Penting | 1. Dijuluki Al-Faruq oleh Rasulullah SAW.
+2. Diangkat menjadi Khalifah oleh Abu Bakar sebelum wafat.
+3. Memperluas wilayah Islam secara masif.
+''';
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: SizedBox(
+            width: 420,
+            child: ChatMessageBubble(
+              message: ChatMessage(
+                id: 'assistant-4',
+                role: ChatRole.assistant,
+                content: content,
+                createdAt: DateTime(2026),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+
+    expect(find.text('Aspek / Detail'), findsOneWidget);
+    expect(find.text('Keluarga'), findsOneWidget);
+    expect(find.text('Peran Penting'), findsOneWidget);
+    expect(find.textContaining('2. Diangkat menjadi Khalifah'), findsOneWidget);
+    expect(find.textContaining('| Keluarga |'), findsNothing);
+  });
 }

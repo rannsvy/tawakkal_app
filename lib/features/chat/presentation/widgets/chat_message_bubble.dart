@@ -317,6 +317,35 @@ class _AssistantResponseParser {
         continue;
       }
 
+      if (_looksLikeTableHeader(line)) {
+        flushParagraph();
+        final rows = <List<String>>[];
+        while (index < lines.length) {
+          final currentLine = lines[index].trim();
+          if (_looksLikeTableHeader(currentLine)) {
+            final cells = _splitTableLine(currentLine);
+            if (cells.any((cell) => cell.isNotEmpty)) {
+              rows.add(_normalizeRow(cells, 2));
+            }
+            index++;
+            continue;
+          }
+
+          if (currentLine.isEmpty || rows.isEmpty) {
+            break;
+          }
+          _appendContinuation(rows.last, currentLine);
+          index++;
+        }
+
+        if (rows.isNotEmpty) {
+          blocks.add(
+            _TableBlock(headers: const ['Aspek', 'Detail'], rows: rows),
+          );
+        }
+        continue;
+      }
+
       if (line.isEmpty) {
         flushParagraph();
       } else {
@@ -337,7 +366,7 @@ class _AssistantResponseParser {
     final trimmed = line.trim();
     return trimmed.length >= 3 &&
         trimmed.startsWith('|') &&
-        trimmed.endsWith('|');
+        trimmed.indexOf('|', 1) > 1;
   }
 
   static bool _looksLikeSeparator(String line) {
@@ -354,7 +383,10 @@ class _AssistantResponseParser {
     if (!_looksLikeTableRow(trimmed)) {
       return const [];
     }
-    final withoutEdges = trimmed.substring(1, trimmed.length - 1);
+    final withoutLeading = trimmed.substring(1);
+    final withoutEdges = withoutLeading.endsWith('|')
+        ? withoutLeading.substring(0, withoutLeading.length - 1)
+        : withoutLeading;
     return withoutEdges
         .split('|')
         .map((cell) => _stripMarkdown(cell.trim()))
@@ -362,10 +394,25 @@ class _AssistantResponseParser {
   }
 
   static List<String> _normalizeRow(List<String> cells, int expectedLength) {
-    if (expectedLength <= 2 || cells.length <= 2) {
+    if (cells.length <= 2) {
       return cells;
     }
+    if (expectedLength <= 2) {
+      return [cells.first, cells.sublist(1).join(' | ')];
+    }
     return [cells.first, cells.sublist(1).join(' | ')];
+  }
+
+  static void _appendContinuation(List<String> row, String line) {
+    if (row.isEmpty) {
+      row.add(line);
+      return;
+    }
+    if (row.length == 1) {
+      row.add(line);
+      return;
+    }
+    row[1] = row[1].isEmpty ? line : '${row[1]}\n$line';
   }
 }
 
