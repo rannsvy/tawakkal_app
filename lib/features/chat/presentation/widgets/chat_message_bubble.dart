@@ -283,7 +283,7 @@ class _TableBlock extends _AssistantBlock {
 
 class _AssistantResponseParser {
   static List<_AssistantBlock> parse(String source) {
-    final lines = source.replaceAll('\r\n', '\n').split('\n');
+    final lines = _normalizeResponseText(source).split('\n');
     final blocks = <_AssistantBlock>[];
     final paragraph = <String>[];
 
@@ -335,10 +335,15 @@ class _AssistantResponseParser {
 
   static bool _looksLikeTableRow(String line) {
     final trimmed = line.trim();
-    return trimmed.startsWith('|') && trimmed.endsWith('|');
+    return trimmed.length >= 3 &&
+        trimmed.startsWith('|') &&
+        trimmed.endsWith('|');
   }
 
   static bool _looksLikeSeparator(String line) {
+    if (!_looksLikeTableRow(line)) {
+      return false;
+    }
     final cells = _splitTableLine(line);
     return cells.length >= 2 &&
         cells.every((cell) => RegExp(r'^:?-{3,}:?$').hasMatch(cell));
@@ -346,6 +351,9 @@ class _AssistantResponseParser {
 
   static List<String> _splitTableLine(String line) {
     final trimmed = line.trim();
+    if (!_looksLikeTableRow(trimmed)) {
+      return const [];
+    }
     final withoutEdges = trimmed.substring(1, trimmed.length - 1);
     return withoutEdges
         .split('|')
@@ -359,6 +367,16 @@ class _AssistantResponseParser {
     }
     return [cells.first, cells.sublist(1).join(' | ')];
   }
+}
+
+String _normalizeResponseText(String source) {
+  return source
+      .replaceAll('\r\n', '\n')
+      .replaceAll('\r', '\n')
+      .replaceAll(RegExp(r'&lt;\s*br\s*/?\s*&gt;', caseSensitive: false), '\n')
+      .replaceAll(RegExp(r'<\s*br\s*/?\s*>', caseSensitive: false), '\n')
+      .replaceAll(RegExp(r'\n{3,}'), '\n\n')
+      .trim();
 }
 
 List<TextSpan> _buildInlineSpans(String source) {

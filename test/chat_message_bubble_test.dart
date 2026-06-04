@@ -42,4 +42,65 @@ Tentu, berikut adalah tabel biografi singkat Umar bin Khattab:
     );
     expect(find.text('| **Aspek** | **Detail** |'), findsNothing);
   });
+
+  testWidgets('assistant response renders html break tags as line breaks', (
+    tester,
+  ) async {
+    const content =
+        'Peran Penting\n'
+        '1. Dijuluki Al-Faruq oleh Rasulullah SAW.<br>2. Diangkat menjadi Khalifah oleh Abu Bakar.<br/>3. Menetapkan kalender Hijriah.';
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: SizedBox(
+            width: 420,
+            child: ChatMessageBubble(
+              message: ChatMessage(
+                id: 'assistant-2',
+                role: ChatRole.assistant,
+                content: content,
+                createdAt: DateTime(2026),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+
+    expect(find.textContaining('<br>'), findsNothing);
+    expect(find.textContaining('<br/>'), findsNothing);
+    expect(find.textContaining('2. Diangkat menjadi Khalifah'), findsOneWidget);
+    expect(
+      find.textContaining('3. Menetapkan kalender Hijriah'),
+      findsOneWidget,
+    );
+  });
+
+  testWidgets('assistant response does not crash on malformed pipe lines', (
+    tester,
+  ) async {
+    const content = 'Ringkasan\n|\n| **Aspek** | **Detail** |\n|';
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: SizedBox(
+            width: 420,
+            child: ChatMessageBubble(
+              message: ChatMessage(
+                id: 'assistant-3',
+                role: ChatRole.assistant,
+                content: content,
+                createdAt: DateTime(2026),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+
+    expect(tester.takeException(), isNull);
+    expect(find.textContaining('Ringkasan'), findsOneWidget);
+  });
 }
