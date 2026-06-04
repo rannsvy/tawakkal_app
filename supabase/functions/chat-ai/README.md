@@ -7,8 +7,8 @@ Required:
 - `message` (string)
 
 Optional:
-- `provider` (`nvidia`)
-- `model` (NVIDIA model id)
+- `provider` (`xiaomi` or `mimo`; old `nvidia`/`nim` values are treated as MiMo for compatibility)
+- `model` (MiMo model id, default `mimo-v2.5-pro`)
 - `conversation_history` (array of `{ role, content }`, last 10 used)
 - `surah_context` object:
   - `surah_id` (number)
@@ -20,9 +20,10 @@ Optional:
 ```json
 {
   "reply": "string",
-  "model": "z-ai/glm4.7",
+  "model": "mimo-v2.5-pro",
   "meta": {
-    "provider_used": "nvidia",
+    "provider_used": "xiaomi",
+    "upstream_provider": "xiaomi_mimo",
     "latency_ms": 1234,
     "history_count": 4,
     "context_attached": true
@@ -39,26 +40,29 @@ Error shape:
 ```
 
 ## Required secrets
-- `NVIDIA_NIM_API_KEY`
+- `MIMO_API_KEY`
 
 Optional aliases:
-- `NIM_API_KEY`
+- `XIAOMI_MIMO_API_KEY`
+- `XIAOMI_API_KEY`
 
 Recommended settings:
-- `NVIDIA_NIM_BASE_URL` (default `https://integrate.api.nvidia.com/v1`)
-- `AI_MODEL` (default `z-ai/glm4.7`)
-- `NVIDIA_NIM_FALLBACK_MODEL` (optional, retries once on upstream timeout/5xx)
-- `NVIDIA_NIM_REQUEST_TIMEOUT_MS` (default `45000`)
-- `NVIDIA_NIM_MAX_TOKENS` (default `768`)
-- `NVIDIA_NIM_TEMPERATURE` (default `0.4`)
-- `NVIDIA_NIM_TOP_P` (default `0.9`)
-- `NVIDIA_NIM_ENABLE_THINKING` (default `false`)
-- `NVIDIA_NIM_CLEAR_THINKING` (default `true`)
+- `MIMO_BASE_URL` (default `https://api.xiaomimimo.com/v1`)
+- `AI_MODEL` or `MIMO_MODEL` (default `mimo-v2.5-pro`)
+- `MIMO_FALLBACK_MODEL` (optional, retries once on upstream timeout/5xx)
+- `MIMO_REQUEST_TIMEOUT_MS` (default `45000`)
+- `MIMO_MAX_COMPLETION_TOKENS` or `MIMO_MAX_TOKENS` (default `768`)
+- `MIMO_TEMPERATURE` (default `0.7`)
+- `MIMO_TOP_P` (default `0.95`)
+- `MIMO_ENABLE_THINKING` (default `false`)
+- `MIMO_CLEAR_THINKING` (default `true`)
+
+When `MIMO_ENABLE_THINKING=true`, the function omits sampling parameters such as `temperature` because MiMo V2.5 thinking mode does not support customized temperature.
 
 ## 502 troubleshooting
 - If logs show execution around `28000 ms`, requests are timing out upstream.
-- Set `NVIDIA_NIM_REQUEST_TIMEOUT_MS=45000` and reduce `NVIDIA_NIM_MAX_TOKENS` to `512-768`.
-- Set `NVIDIA_NIM_FALLBACK_MODEL` to a faster model available in your NVIDIA account.
+- Set `MIMO_REQUEST_TIMEOUT_MS=45000` and reduce `MIMO_MAX_COMPLETION_TOKENS` to `512-768`.
+- Set `MIMO_FALLBACK_MODEL` to a faster MiMo model available in your account.
 - Upstream timeout now returns `504` (`AI upstream timeout.`) for clearer diagnosis.
 - Redeploy the function after changing code/secrets.
 

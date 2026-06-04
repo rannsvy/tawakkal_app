@@ -1,7 +1,7 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 
-const defaultNimBaseUrl = "https://integrate.api.nvidia.com/v1";
-const defaultNimModel = "z-ai/glm4.7";
+const defaultMimoBaseUrl = "https://api.xiaomimimo.com/v1";
+const defaultMimoModel = "mimo-v2.5-pro";
 const maxUserMessageChars = 1800;
 const maxHistoryMessageChars = 900;
 const maxAyahTranslationsChars = 2600;
@@ -13,7 +13,7 @@ const corsHeaders = {
   "Access-Control-Allow-Methods": "POST, OPTIONS",
 };
 
-type Provider = "nvidia";
+type Provider = "xiaomi";
 type ChatRole = "system" | "user" | "assistant";
 
 type ConversationMessage = {
@@ -28,7 +28,7 @@ type SurahContext = {
   tafsir_snippets?: string;
 };
 
-type NimConfig = {
+type MimoConfig = {
   baseUrl: string;
   apiKey: string;
   defaultModel: string;
@@ -74,7 +74,7 @@ Deno.serve(async (req: Request) => {
 
   const provider = parseProvider(body.provider);
   if (provider === "invalid") {
-    return jsonResponse({ error: "Invalid provider. Allowed values: nvidia." }, 400);
+    return jsonResponse({ error: "Invalid provider. Allowed values: xiaomi, mimo." }, 400);
   }
 
   const userMessageRaw = asString(body.message).trim();
@@ -83,17 +83,17 @@ Deno.serve(async (req: Request) => {
   }
   const userMessage = clampText(userMessageRaw, maxUserMessageChars);
 
-  const config = loadNimConfig();
+  const config = loadMimoConfig();
   if (!config.apiKey) {
     return jsonResponse(
       {
-        error: "NVIDIA_NIM_API_KEY is not configured for chat-ai function.",
+        error: "MIMO_API_KEY is not configured for chat-ai function.",
       },
       500,
     );
   }
 
-  const model = resolveModel(asString(body.model), config.defaultModel);
+  const model = resolveMimoModel(asString(body.model), config.defaultModel);
   const history = parseConversationHistory(body.conversation_history);
   const surahContext = parseSurahContext(body.surah_context);
 
@@ -160,7 +160,8 @@ Deno.serve(async (req: Request) => {
         reply,
         model: modelUsed,
         meta: {
-          provider_used: provider ?? "nvidia",
+          provider_used: provider ?? "xiaomi",
+          upstream_provider: "xiaomi_mimo",
           completion_attempt: completion.attempt,
           latency_ms: Date.now() - startedAt,
           history_count: history.length,
@@ -207,38 +208,49 @@ function buildSurahContextInstruction(context: SurahContext): string {
   return parts.join("\n");
 }
 
-function loadNimConfig(): NimConfig {
-  const apiKey = Deno.env.get("NVIDIA_NIM_API_KEY") || Deno.env.get("NIM_API_KEY") || "";
-  const defaultModel = resolveModel(
-    Deno.env.get("AI_MODEL") || Deno.env.get("NVIDIA_NIM_MODEL") || "",
-    defaultNimModel,
+function loadMimoConfig(): MimoConfig {
+  const apiKey =
+    Deno.env.get("MIMO_API_KEY") ||
+    Deno.env.get("XIAOMI_MIMO_API_KEY") ||
+    Deno.env.get("XIAOMI_API_KEY") ||
+    "";
+  const defaultModel = resolveMimoModel(
+    Deno.env.get("MIMO_MODEL") ||
+      Deno.env.get("XIAOMI_MIMO_MODEL") ||
+      Deno.env.get("AI_MODEL") ||
+      "",
+    defaultMimoModel,
   );
 
   return {
-    baseUrl: normalizeBaseUrl(Deno.env.get("NVIDIA_NIM_BASE_URL") || defaultNimBaseUrl),
+    baseUrl: normalizeBaseUrl(
+      Deno.env.get("MIMO_BASE_URL") ||
+        Deno.env.get("XIAOMI_MIMO_BASE_URL") ||
+        defaultMimoBaseUrl,
+    ),
     apiKey,
     defaultModel,
     requestTimeoutMs: parseIntWithBounds(
-      Deno.env.get("NVIDIA_NIM_REQUEST_TIMEOUT_MS"),
+      Deno.env.get("MIMO_REQUEST_TIMEOUT_MS"),
       45000,
       3000,
       60000,
     ),
     maxTokens: parseIntWithBounds(
-      Deno.env.get("NVIDIA_NIM_MAX_TOKENS"),
+      Deno.env.get("MIMO_MAX_COMPLETION_TOKENS") || Deno.env.get("MIMO_MAX_TOKENS"),
       768,
       128,
       4096,
     ),
     temperature: parseFloatWithBounds(
-      Deno.env.get("NVIDIA_NIM_TEMPERATURE"),
-      0.4,
+      Deno.env.get("MIMO_TEMPERATURE"),
+      0.7,
       0,
-      1.5,
+      2,
     ),
-    topP: parseFloatWithBounds(Deno.env.get("NVIDIA_NIM_TOP_P"), 0.9, 0, 1),
-    enableThinking: parseBooleanWithDefault(Deno.env.get("NVIDIA_NIM_ENABLE_THINKING"), false),
-    clearThinking: parseBooleanWithDefault(Deno.env.get("NVIDIA_NIM_CLEAR_THINKING"), true),
+    topP: parseFloatWithBounds(Deno.env.get("MIMO_TOP_P"), 0.95, 0, 1),
+    enableThinking: parseBooleanWithDefault(Deno.env.get("MIMO_ENABLE_THINKING"), false),
+    clearThinking: parseBooleanWithDefault(Deno.env.get("MIMO_CLEAR_THINKING"), true),
   };
 }
 
@@ -295,8 +307,11 @@ function parseProvider(input: unknown): Provider | null | "invalid" {
   if (!value) {
     return null;
   }
-  if (value === "nvidia") {
-    return "nvidia";
+  if (value === "xiaomi" || value === "mimo" || value === "xiaomi_mimo") {
+    return "xiaomi";
+  }
+  if (value === "nvidia" || value === "nim") {
+    return "xiaomi";
   }
   return "invalid";
 }
@@ -338,8 +353,10 @@ async function requestChatCompletionWithFallback(params: {
     };
   }
 
-  const fallbackModel = resolveModel(
-    Deno.env.get("NVIDIA_NIM_FALLBACK_MODEL") || "",
+  const fallbackModel = resolveMimoModel(
+    Deno.env.get("MIMO_FALLBACK_MODEL") ||
+      Deno.env.get("XIAOMI_MIMO_FALLBACK_MODEL") ||
+      "",
     params.model,
   );
   const fallbackTimeoutMs = Math.max(
@@ -384,21 +401,21 @@ async function requestChatCompletion(params: {
     model: params.model,
     messages: params.messages,
     stream: false,
-    max_tokens: params.maxTokens,
-    temperature: params.temperature,
-    top_p: params.topP,
+    max_completion_tokens: params.maxTokens,
   };
-  if (params.enableThinking) {
-    payload.chat_template_kwargs = {
-      enable_thinking: params.enableThinking,
-      clear_thinking: params.clearThinking,
-    };
+  if (!params.enableThinking) {
+    payload.temperature = params.temperature;
+    payload.top_p = params.topP;
   }
+  payload.thinking = {
+    type: params.enableThinking ? "enabled" : "disabled",
+  };
 
   try {
     const response = await fetch(`${params.baseUrl}/chat/completions`, {
       method: "POST",
       headers: {
+        "api-key": params.apiKey,
         Authorization: `Bearer ${params.apiKey}`,
         "Content-Type": "application/json",
       },
@@ -415,7 +432,7 @@ async function requestChatCompletion(params: {
     const body = {
       error: {
         code: timedOut ? 408 : 502,
-        message: timedOut ? "NVIDIA request timeout" : String(error),
+        message: timedOut ? "MiMo request timeout" : String(error),
       },
     };
     return {
@@ -475,6 +492,17 @@ function jsonResponse(payload: unknown, status = 200): Response {
 function resolveModel(input: string, fallback: string): string {
   const normalized = normalizeModelId(input);
   return normalized || fallback;
+}
+
+function resolveMimoModel(input: string, fallback: string): string {
+  const normalized = normalizeModelId(input).replace(/^xiaomi\//i, "");
+  if (!normalized) {
+    return fallback;
+  }
+  if (normalized.startsWith("mimo-")) {
+    return normalized;
+  }
+  return fallback;
 }
 
 function normalizeBaseUrl(url: string): string {

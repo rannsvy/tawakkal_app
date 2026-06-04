@@ -33,11 +33,11 @@ class AppConfig {
   );
   static const String _aiProviderDefine = String.fromEnvironment(
     'AI_PROVIDER',
-    defaultValue: 'nvidia',
+    defaultValue: 'xiaomi',
   );
   static const String _aiModelDefine = String.fromEnvironment(
     'AI_MODEL',
-    defaultValue: 'z-ai/glm4.7',
+    defaultValue: 'mimo-v2.5-pro',
   );
   static const bool _aiQuizAlwaysFreshDefine = bool.fromEnvironment(
     'AI_QUIZ_ALWAYS_FRESH',
@@ -146,9 +146,9 @@ class AppConfig {
   static String get aiQuizEndpoint =>
       _resolveString('AI_QUIZ_ENDPOINT', _aiQuizEndpointDefine);
   static String get aiProvider =>
-      _resolveString('AI_PROVIDER', _aiProviderDefine, defaultValue: 'nvidia');
+      _resolveString('AI_PROVIDER', _aiProviderDefine, defaultValue: 'xiaomi');
   static String get aiModel =>
-      _resolveString('AI_MODEL', _aiModelDefine, defaultValue: 'z-ai/glm4.7');
+      _resolveString('AI_MODEL', _aiModelDefine, defaultValue: 'mimo-v2.5-pro');
   static bool get aiQuizAlwaysFresh =>
       _resolveBool('AI_QUIZ_ALWAYS_FRESH', _aiQuizAlwaysFreshDefine);
   static int get aiQuizRecentSignatureLimit => _resolveInt(

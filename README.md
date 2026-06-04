@@ -89,8 +89,8 @@ SUPABASE_URL=https://your-project.supabase.co
 SUPABASE_ANON_KEY=your-anon-key
 AI_QUIZ_ENDPOINT=https://your-project.supabase.co/functions/v1/quiz-generate
 CHAT_AI_TAWAKKAL_ENDPOINT=https://your-project.supabase.co/functions/v1/chat-ai
-AI_PROVIDER=nvidia
-AI_MODEL=z-ai/glm4.7
+AI_PROVIDER=xiaomi
+AI_MODEL=mimo-v2.5-pro
 AI_QUIZ_ALWAYS_FRESH=true
 AI_QUIZ_RECENT_SIGNATURE_LIMIT=30
 ```
@@ -138,4 +138,4 @@ flutter test
 ## Security Notes
 
 - Do not commit real credentials in `.env`.
-- Keep server-side secrets (for example provider API keys) in Supabase Edge Function secrets, not in the Flutter app.
+- Keep server-side secrets (for example `MIMO_API_KEY`) in Supabase Edge Function secrets, not in the Flutter app.

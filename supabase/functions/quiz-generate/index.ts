@@ -1,7 +1,7 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 
-const defaultNimBaseUrl = "https://integrate.api.nvidia.com/v1";
-const defaultNimModel = "z-ai/glm4.7";
+const defaultMimoBaseUrl = "https://api.xiaomimimo.com/v1";
+const defaultMimoQuizModel = "mimo-v2-flash";
 const defaultEquranBaseUrl = "https://equran.id/api/v2";
 
 const corsHeaders = {
@@ -37,15 +37,13 @@ type FetchJsonResult =
   | { ok: true; data: unknown }
   | { ok: false; error: Record<string, unknown> };
 
-type NimConfig = {
+type MimoConfig = {
   baseUrl: string;
   apiKey: string;
   defaultModel: string;
   requestTimeoutMs: number;
   maxTokens: number;
   enableThinking: boolean;
-  clearThinking: boolean;
-  extraHeaders?: Record<string, string>;
 };
 
 type EnrichmentResult = {
@@ -93,7 +91,8 @@ Keep explanation <= 180 chars and feedback.correct/feedback.incorrect <= 120 cha
 Deno.serve(async (req: Request) => {
   const startedAt = Date.now();
   const functionBudgetMs = parseIntWithBounds(
-    Deno.env.get("NVIDIA_NIM_FUNCTION_BUDGET_MS"),
+    Deno.env.get("MIMO_QUIZ_FUNCTION_BUDGET_MS") ??
+      Deno.env.get("MIMO_FUNCTION_BUDGET_MS"),
     42000,
     10000,
     44000,
@@ -111,7 +110,7 @@ Deno.serve(async (req: Request) => {
 
   const provider = parseProvider(body.provider);
   if (provider === "invalid") {
-    return jsonResponse({ error: "Invalid provider. Allowed values: nvidia." }, 400);
+    return jsonResponse({ error: "Invalid provider. Allowed values: xiaomi, mimo." }, 400);
   }
 
   const surahId = asPositiveInt(body.surah_id);
@@ -122,7 +121,6 @@ Deno.serve(async (req: Request) => {
   const language = normalizeLanguage(body.language);
   const difficulty = normalizeDifficulty(asString(body.difficulty));
   const questionCount = resolveQuestionCount(body.question_count, difficulty);
-  const requestedModel = normalizeModelId(asString(body.model));
   const requestedSurahName = asString(body.surah_name);
   const generationMode = normalizeGenerationMode(
     body.generation_mode,
@@ -186,7 +184,6 @@ Deno.serve(async (req: Request) => {
       language,
       difficulty,
       questionCount,
-      requestedModel,
       startedAt,
       functionBudgetMs,
       recentAyahRefs,
@@ -222,7 +219,7 @@ Deno.serve(async (req: Request) => {
   });
 
   const meta: Record<string, unknown> = {
-    provider_used: generationInfo.success ? "nvidia" : "deterministic",
+    provider_used: generationInfo.success ? "xiaomi_mimo" : "deterministic",
     model_used: generationInfo.success ? generationInfo.modelUsed : null,
     generation_mode: generationInfo.success ? "ai_first" : "deterministic",
     request_id: requestId,
@@ -258,7 +255,6 @@ Deno.serve(async (req: Request) => {
       difficulty,
       startedAt,
       functionBudgetMs,
-      requestedModel,
     })
     : {
       attempted: false,
@@ -280,7 +276,7 @@ Deno.serve(async (req: Request) => {
   };
 
   if (aiResult.success && aiResult.modelUsed) {
-    meta.provider_used = "nvidia";
+    meta.provider_used = "xiaomi_mimo";
     meta.model_used = aiResult.modelUsed;
     meta.generation_mode = "deterministic_ai_enhanced";
   }
@@ -1010,14 +1006,13 @@ async function maybeGenerateQuizWithAI(params: {
   language: SupportedLanguage;
   difficulty: Difficulty;
   questionCount: number;
-  requestedModel: string;
   startedAt: number;
   functionBudgetMs: number;
   recentAyahRefs: Set<string>;
   requestId: string;
 }): Promise<FullGenerationResult> {
   const enabled = parseBooleanWithDefault(
-    Deno.env.get("NVIDIA_NIM_ENABLE_FULL_GENERATION"),
+    Deno.env.get("MIMO_QUIZ_ENABLE_FULL_GENERATION"),
     true,
   );
   if (!enabled) {
@@ -1032,7 +1027,11 @@ async function maybeGenerateQuizWithAI(params: {
     };
   }
 
-  const apiKey = Deno.env.get("NVIDIA_NIM_API_KEY") ?? Deno.env.get("NIM_API_KEY") ?? "";
+  const apiKey =
+    Deno.env.get("MIMO_API_KEY") ??
+    Deno.env.get("XIAOMI_MIMO_API_KEY") ??
+    Deno.env.get("XIAOMI_API_KEY") ??
+    "";
   if (!apiKey) {
     return {
       attempted: false,
@@ -1041,7 +1040,7 @@ async function maybeGenerateQuizWithAI(params: {
       latencyMs: 0,
       modelUsed: null,
       questionCount: 0,
-      error: { reason: "missing_nvidia_api_key" },
+      error: { reason: "missing_mimo_api_key" },
     };
   }
 
@@ -1058,18 +1057,30 @@ async function maybeGenerateQuizWithAI(params: {
     };
   }
 
-  const nim: NimConfig = {
-    baseUrl: normalizeBaseUrl(Deno.env.get("NVIDIA_NIM_BASE_URL") ?? defaultNimBaseUrl),
+  const mimo: MimoConfig = {
+    baseUrl: normalizeBaseUrl(
+      Deno.env.get("MIMO_BASE_URL") ??
+        Deno.env.get("XIAOMI_MIMO_BASE_URL") ??
+        defaultMimoBaseUrl,
+    ),
     apiKey,
-    defaultModel: normalizeModelId(Deno.env.get("NVIDIA_NIM_MODEL") ?? defaultNimModel),
-    requestTimeoutMs: parseIntWithBounds(Deno.env.get("NVIDIA_NIM_FULL_TIMEOUT_MS"), 12000, 3000, 18000),
-    maxTokens: parseIntWithBounds(Deno.env.get("NVIDIA_NIM_FULL_MAX_TOKENS"), 2200, 900, 4096),
-    enableThinking: parseBooleanWithDefault(Deno.env.get("NVIDIA_NIM_ENABLE_THINKING"), false),
-    clearThinking: parseBooleanWithDefault(Deno.env.get("NVIDIA_NIM_CLEAR_THINKING"), true),
+    defaultModel: resolveMimoModel(
+      Deno.env.get("MIMO_QUIZ_MODEL") ?? "",
+      defaultMimoQuizModel,
+    ),
+    requestTimeoutMs: parseIntWithBounds(Deno.env.get("MIMO_QUIZ_FULL_TIMEOUT_MS"), 12000, 3000, 18000),
+    maxTokens: parseIntWithBounds(
+      Deno.env.get("MIMO_QUIZ_FULL_MAX_COMPLETION_TOKENS") ??
+        Deno.env.get("MIMO_QUIZ_FULL_MAX_TOKENS"),
+      2200,
+      900,
+      4096,
+    ),
+    enableThinking: parseBooleanWithDefault(Deno.env.get("MIMO_QUIZ_ENABLE_THINKING"), false),
   };
 
-  const model = resolveModel({ requestedModel: params.requestedModel, defaultModel: nim.defaultModel });
-  const timeoutMs = Math.max(2000, Math.min(nim.requestTimeoutMs, remaining - 2200));
+  const model = mimo.defaultModel;
+  const timeoutMs = Math.max(2000, Math.min(mimo.requestTimeoutMs, remaining - 2200));
   const startedAt = Date.now();
 
   const contextCap = Math.max(
@@ -1095,13 +1106,10 @@ async function maybeGenerateQuizWithAI(params: {
 
   const payload = {
     model,
-    temperature: 1.0,
-    top_p: 0.9,
-    max_tokens: nim.maxTokens,
+    max_completion_tokens: mimo.maxTokens,
     stream: false,
-    chat_template_kwargs: {
-      enable_thinking: nim.enableThinking,
-      clear_thinking: nim.clearThinking,
+    thinking: {
+      type: mimo.enableThinking ? "enabled" : "disabled",
     },
     response_format: { type: "json_object" },
     messages: [
@@ -1132,11 +1140,10 @@ async function maybeGenerateQuizWithAI(params: {
   };
 
   const completion = await requestChatCompletion({
-    baseUrl: nim.baseUrl,
-    apiKey: nim.apiKey,
+    baseUrl: mimo.baseUrl,
+    apiKey: mimo.apiKey,
     payload,
     timeoutMs,
-    extraHeaders: nim.extraHeaders,
   });
 
   if (!completion.response.ok) {
@@ -1148,7 +1155,7 @@ async function maybeGenerateQuizWithAI(params: {
       latencyMs: Date.now() - startedAt,
       modelUsed: model,
       questionCount: 0,
-      error: { reason: "nvidia_full_generation_request_failed", details: body },
+      error: { reason: "mimo_full_generation_request_failed", details: body },
     };
   }
 
@@ -1162,7 +1169,7 @@ async function maybeGenerateQuizWithAI(params: {
       latencyMs: Date.now() - startedAt,
       modelUsed: model,
       questionCount: 0,
-      error: { reason: "nvidia_full_generation_empty_content" },
+      error: { reason: "mimo_full_generation_empty_content" },
     };
   }
 
@@ -1175,7 +1182,7 @@ async function maybeGenerateQuizWithAI(params: {
       latencyMs: Date.now() - startedAt,
       modelUsed: model,
       questionCount: 0,
-      error: { reason: "nvidia_full_generation_non_json" },
+      error: { reason: "mimo_full_generation_non_json" },
     };
   }
 
@@ -1190,7 +1197,7 @@ async function maybeGenerateQuizWithAI(params: {
       latencyMs: Date.now() - startedAt,
       modelUsed: model,
       questionCount: 0,
-      error: { reason: "nvidia_full_generation_invalid_json", details: String(error) },
+      error: { reason: "mimo_full_generation_invalid_json", details: String(error) },
     };
   }
 
@@ -1210,7 +1217,7 @@ async function maybeGenerateQuizWithAI(params: {
       latencyMs: Date.now() - startedAt,
       modelUsed: model,
       questionCount: 0,
-      error: { reason: "nvidia_full_generation_missing_quiz_structure" },
+      error: { reason: "mimo_full_generation_missing_quiz_structure" },
     };
   }
 
@@ -1229,7 +1236,7 @@ async function maybeGenerateQuizWithAI(params: {
       latencyMs: Date.now() - startedAt,
       modelUsed: model,
       questionCount: 0,
-      error: { reason: "nvidia_full_generation_empty_after_repair", validation },
+      error: { reason: "mimo_full_generation_empty_after_repair", validation },
     };
   }
 
@@ -1250,10 +1257,9 @@ async function maybeEnrichQuiz(params: {
   difficulty: Difficulty;
   startedAt: number;
   functionBudgetMs: number;
-  requestedModel: string;
 }): Promise<EnrichmentResult> {
   const enabled = parseBooleanWithDefault(
-    Deno.env.get("NVIDIA_NIM_ENABLE_EXPLANATION_ENRICHMENT"),
+    Deno.env.get("MIMO_QUIZ_ENABLE_EXPLANATION_ENRICHMENT"),
     false,
   );
   if (!enabled) {
@@ -1268,7 +1274,11 @@ async function maybeEnrichQuiz(params: {
     };
   }
 
-  const apiKey = Deno.env.get("NVIDIA_NIM_API_KEY") ?? Deno.env.get("NIM_API_KEY") ?? "";
+  const apiKey =
+    Deno.env.get("MIMO_API_KEY") ??
+    Deno.env.get("XIAOMI_MIMO_API_KEY") ??
+    Deno.env.get("XIAOMI_API_KEY") ??
+    "";
   if (!apiKey) {
     return {
       attempted: false,
@@ -1277,7 +1287,7 @@ async function maybeEnrichQuiz(params: {
       latencyMs: 0,
       enhancedCount: 0,
       modelUsed: null,
-      error: { reason: "missing_nvidia_api_key" },
+      error: { reason: "missing_mimo_api_key" },
     };
   }
 
@@ -1294,18 +1304,30 @@ async function maybeEnrichQuiz(params: {
     };
   }
 
-  const nim: NimConfig = {
-    baseUrl: normalizeBaseUrl(Deno.env.get("NVIDIA_NIM_BASE_URL") ?? defaultNimBaseUrl),
+  const mimo: MimoConfig = {
+    baseUrl: normalizeBaseUrl(
+      Deno.env.get("MIMO_BASE_URL") ??
+        Deno.env.get("XIAOMI_MIMO_BASE_URL") ??
+        defaultMimoBaseUrl,
+    ),
     apiKey,
-    defaultModel: normalizeModelId(Deno.env.get("NVIDIA_NIM_MODEL") ?? defaultNimModel),
-    requestTimeoutMs: parseIntWithBounds(Deno.env.get("NVIDIA_NIM_ENRICH_TIMEOUT_MS"), 9000, 2000, 15000),
-    maxTokens: parseIntWithBounds(Deno.env.get("NVIDIA_NIM_MAX_TOKENS"), 900, 256, 2048),
-    enableThinking: parseBooleanWithDefault(Deno.env.get("NVIDIA_NIM_ENABLE_THINKING"), false),
-    clearThinking: parseBooleanWithDefault(Deno.env.get("NVIDIA_NIM_CLEAR_THINKING"), true),
+    defaultModel: resolveMimoModel(
+      Deno.env.get("MIMO_QUIZ_MODEL") ?? "",
+      defaultMimoQuizModel,
+    ),
+    requestTimeoutMs: parseIntWithBounds(Deno.env.get("MIMO_QUIZ_ENRICH_TIMEOUT_MS"), 9000, 2000, 15000),
+    maxTokens: parseIntWithBounds(
+      Deno.env.get("MIMO_QUIZ_MAX_COMPLETION_TOKENS") ??
+        Deno.env.get("MIMO_QUIZ_MAX_TOKENS"),
+      900,
+      256,
+      2048,
+    ),
+    enableThinking: parseBooleanWithDefault(Deno.env.get("MIMO_QUIZ_ENABLE_THINKING"), false),
   };
 
-  const model = resolveModel({ requestedModel: params.requestedModel, defaultModel: nim.defaultModel });
-  const timeoutMs = Math.max(1500, Math.min(nim.requestTimeoutMs, remaining - 2000));
+  const model = mimo.defaultModel;
+  const timeoutMs = Math.max(1500, Math.min(mimo.requestTimeoutMs, remaining - 2000));
 
   const startedAt = Date.now();
   const compactQuestions = asArray(params.quiz.questions)
@@ -1319,13 +1341,10 @@ async function maybeEnrichQuiz(params: {
 
   const payload = {
     model,
-    temperature: 0.2,
-    top_p: 0.7,
-    max_tokens: nim.maxTokens,
+    max_completion_tokens: mimo.maxTokens,
     stream: false,
-    chat_template_kwargs: {
-      enable_thinking: nim.enableThinking,
-      clear_thinking: nim.clearThinking,
+    thinking: {
+      type: mimo.enableThinking ? "enabled" : "disabled",
     },
     response_format: { type: "json_object" },
     messages: [
@@ -1348,11 +1367,10 @@ async function maybeEnrichQuiz(params: {
   };
 
   const completion = await requestChatCompletion({
-    baseUrl: nim.baseUrl,
-    apiKey: nim.apiKey,
+    baseUrl: mimo.baseUrl,
+    apiKey: mimo.apiKey,
     payload,
     timeoutMs,
-    extraHeaders: nim.extraHeaders,
   });
 
   if (!completion.response.ok) {
@@ -1364,7 +1382,7 @@ async function maybeEnrichQuiz(params: {
       latencyMs: Date.now() - startedAt,
       enhancedCount: 0,
       modelUsed: model,
-      error: { message: "nvidia enrichment request failed", details: body },
+      error: { message: "mimo enrichment request failed", details: body },
     };
   }
 
@@ -1378,7 +1396,7 @@ async function maybeEnrichQuiz(params: {
       latencyMs: Date.now() - startedAt,
       enhancedCount: 0,
       modelUsed: model,
-      error: { message: "nvidia enrichment returned empty content" },
+      error: { message: "mimo enrichment returned empty content" },
     };
   }
 
@@ -1391,7 +1409,7 @@ async function maybeEnrichQuiz(params: {
       latencyMs: Date.now() - startedAt,
       enhancedCount: 0,
       modelUsed: model,
-      error: { message: "nvidia enrichment returned non-JSON content" },
+      error: { message: "mimo enrichment returned non-JSON content" },
     };
   }
 
@@ -1406,7 +1424,7 @@ async function maybeEnrichQuiz(params: {
       latencyMs: Date.now() - startedAt,
       enhancedCount: 0,
       modelUsed: model,
-      error: { message: "nvidia enrichment returned invalid JSON", details: String(error) },
+      error: { message: "mimo enrichment returned invalid JSON", details: String(error) },
     };
   }
 
@@ -1468,7 +1486,7 @@ async function maybeEnrichQuiz(params: {
     latencyMs: Date.now() - startedAt,
     enhancedCount,
     modelUsed: model,
-    error: enhancedCount > 0 ? undefined : { message: "nvidia enrichment produced no applicable updates" },
+    error: enhancedCount > 0 ? undefined : { message: "mimo enrichment produced no applicable updates" },
   };
 }
 function parseAyahContext(source: Record<string, unknown>, fallbackSurahId: number): AyahContext | null {
@@ -1564,7 +1582,6 @@ async function requestChatCompletion(params: {
   apiKey: string;
   payload: Record<string, unknown>;
   timeoutMs?: number;
-  extraHeaders?: Record<string, string>;
 }) {
   const timeoutMs = params.timeoutMs ?? 30000;
   const controller = new AbortController();
@@ -1575,7 +1592,7 @@ async function requestChatCompletion(params: {
     response = await fetch(`${params.baseUrl}/chat/completions`, {
       method: "POST",
       headers: {
-        ...(params.extraHeaders ?? {}),
+        "api-key": params.apiKey,
         Authorization: `Bearer ${params.apiKey}`,
         "Content-Type": "application/json",
       },
@@ -1721,17 +1738,20 @@ function coerceQuizFromModelOutput(params: {
   return root;
 }
 
-function resolveModel(params: { requestedModel: string; defaultModel: string }): string {
-  const model = normalizeModelId(params.requestedModel);
-  return model || params.defaultModel;
+function resolveMimoModel(input: string, fallback: string): string {
+  const model = normalizeModelId(input).replace(/^xiaomi\//i, "");
+  if (!model) return fallback;
+  return model.startsWith("mimo-") ? model : fallback;
 }
 
-function parseProvider(input: unknown): "nvidia" | "invalid" | null {
+function parseProvider(input: unknown): "xiaomi" | "invalid" | null {
   if (input == null) return null;
   if (typeof input !== "string") return "invalid";
   const value = input.trim().toLowerCase();
   if (!value) return null;
-  return value === "nvidia" ? "nvidia" : "invalid";
+  if (value === "xiaomi" || value === "mimo" || value === "xiaomi_mimo") return "xiaomi";
+  if (value === "nvidia" || value === "nim") return "xiaomi";
+  return "invalid";
 }
 
 function parseIntWithBounds(value: string | undefined, fallback: number, min: number, max: number): number {

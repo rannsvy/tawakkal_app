@@ -56,3 +56,6 @@ app.*.map.json
 
 #agents.md
 AGENTS.md
+
+# Supabase 
+.supabase/
