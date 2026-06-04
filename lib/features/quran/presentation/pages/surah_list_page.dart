@@ -273,7 +273,7 @@ class _QuranIndexHeader extends StatelessWidget {
     return Row(
       children: [
         Text(
-          'Quran Index',
+          'Quran',
           style: Theme.of(context).textTheme.headlineSmall?.copyWith(
             color: isDark
                 ? TawakkalColors.textPrimaryDark
