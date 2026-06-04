@@ -331,7 +331,18 @@ class _AssistantResponseParser {
             continue;
           }
 
-          if (currentLine.isEmpty || rows.isEmpty) {
+          if (currentLine.isEmpty) {
+            final nextContentIndex = _nextNonEmptyLineIndex(lines, index + 1);
+            if (rows.isNotEmpty &&
+                nextContentIndex != -1 &&
+                !_looksLikeTableHeader(lines[nextContentIndex].trim()) &&
+                _looksLikeContinuationLine(lines[nextContentIndex].trim())) {
+              index = nextContentIndex;
+              continue;
+            }
+            break;
+          }
+          if (rows.isEmpty) {
             break;
           }
           _appendContinuation(rows.last, currentLine);
@@ -413,6 +424,23 @@ class _AssistantResponseParser {
       return;
     }
     row[1] = row[1].isEmpty ? line : '${row[1]}\n$line';
+  }
+
+  static int _nextNonEmptyLineIndex(List<String> lines, int startIndex) {
+    for (var index = startIndex; index < lines.length; index++) {
+      if (lines[index].trim().isNotEmpty) {
+        return index;
+      }
+    }
+    return -1;
+  }
+
+  static bool _looksLikeContinuationLine(String line) {
+    return RegExp(r'^(\d+[.)]\s|[-*]\s)').hasMatch(line) ||
+        RegExp(
+          r'^(?:\*\*)?[\p{L}\s]{2,40}(?:\*\*)?\s*:',
+          unicode: true,
+        ).hasMatch(line);
   }
 }
 
